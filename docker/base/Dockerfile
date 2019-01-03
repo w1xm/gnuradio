@@ -14,5 +14,7 @@ RUN pybombs install gr-limesdr
 
 RUN pybombs config makewidth 2
 
+RUN pip install 'git+https://github.com/w1xm/rci_interface.git#egg=rci&subdirectory=client'
+
 RUN echo 'source /pybombs/setup_env.sh && "$@"' > /run.sh
 ENTRYPOINT ["/bin/bash", "/run.sh"]
