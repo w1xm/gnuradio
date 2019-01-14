@@ -16,5 +16,9 @@ RUN pybombs config makewidth 2
 
 RUN pip install 'git+https://github.com/w1xm/rci_interface.git#egg=rci&subdirectory=client'
 
+# Install xterm and configure grc to use it.
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y xterm
+RUN sed -Ei '/^xterm_executable\s*=/c xterm_executable = /usr/bin/xterm' /pybombs/etc/gnuradio/conf.d/grc.conf
+
 RUN echo 'source /pybombs/setup_env.sh && "$@"' > /run.sh
 ENTRYPOINT ["/bin/bash", "/run.sh"]
