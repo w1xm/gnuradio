@@ -21,7 +21,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -y xterm
 RUN sed -Ei '/^xterm_executable\s*=/c xterm_executable = /usr/bin/xterm' /pybombs/etc/gnuradio/conf.d/grc.conf
 
 # Install sound packages for aplay and friends.
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -y alsa-utils pulseaudio-utils
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y alsa-utils pulseaudio-utils libasound2-plugins
 
 RUN echo 'source /pybombs/setup_env.sh && "$@"' > /run.sh
 ENTRYPOINT ["/bin/bash", "/run.sh"]
