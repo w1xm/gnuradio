@@ -1,9 +1,14 @@
 #!/bin/bash
 # DISPLAY and XAUTHORITY allow running X11 apps
+# PULSE_SERVER and PULSE_COOKIE give the container access to PulseAudio
 # -v /home/w1xm-admin:/home/w1xm-admin makes the home directory accessible inside the container.
 # --privileged gives access to USB devices (--device /dev/bus/usb/004/069 would also work, but would require that we ID all the devices we care about)
 # --ipc=host gives access to SHM so waterfalls work
 # --net=host gives access to the X11 socket as well as allows binding servers
 # -it runs interactively with a tty so the stdin/stdout work
 # w1xm/base is the nae of the container to run in
-exec docker run -e DISPLAY -v ${XAUTHORITY:-$HOME/.Xauthority}:/root/.Xauthority -v /home/w1xm-admin:/home/w1xm-admin --privileged --net=host --ipc=host -it w1xm/base "$@"
+exec docker run \
+     -e DISPLAY -v ${XAUTHORITY:-$HOME/.Xauthority}:/root/.Xauthority \
+     -e PULSE_SERVER=unix:/pulse/socket -e PULSE_COOKIE=/pulse/cookie -v /run/user/$UID/pulse/native:/pulse/socket -v $HOME/.config/pulse/cookie:/pulse/cookie \
+     -v /home/w1xm-admin:/home/w1xm-admin \
+     --privileged --net=host --ipc=host -it w1xm/base "$@"
