@@ -24,5 +24,12 @@ RUN sed -Ei '/^xterm_executable\s*=/c xterm_executable = /usr/bin/xterm' /pybomb
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y alsa-utils pulseaudio-utils libasound2-plugins
 RUN sed -Ei '/enable-shm/c enable-shm = no' /etc/pulse/client.conf
 
+# Install sublime text
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y wget
+RUN wget -qO - https://download.sublimetext.com/sublimehq-pub.gpg | apt-key add -
+RUN echo "deb https://download.sublimetext.com/ apt/stable/" > /etc/apt/sources.list.d/sublime-text.list
+RUN DEBIAN_FRONTEND=noninteractive apt-get update -q
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y sublime-text
+
 RUN echo 'source /pybombs/setup_env.sh && "$@"' > /run.sh
 ENTRYPOINT ["/bin/bash", "/run.sh"]
