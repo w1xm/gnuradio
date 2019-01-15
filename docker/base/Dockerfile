@@ -22,6 +22,7 @@ RUN sed -Ei '/^xterm_executable\s*=/c xterm_executable = /usr/bin/xterm' /pybomb
 
 # Install sound packages for aplay and friends.
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y alsa-utils pulseaudio-utils libasound2-plugins
+RUN sed -Ei '/enable-shm/c enable-shm = no' /etc/pulse/client.conf
 
 RUN echo 'source /pybombs/setup_env.sh && "$@"' > /run.sh
 ENTRYPOINT ["/bin/bash", "/run.sh"]
