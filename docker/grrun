@@ -6,9 +6,27 @@
 # --ipc=host gives access to SHM so waterfalls work
 # --net=host gives access to the X11 socket as well as allows binding servers
 # -it runs interactively with a tty so the stdin/stdout work
-# w1xm/base is the nae of the container to run in
+# w1xm/base is the name of the container to run in
+
+TAG=w1xm/base
+
+TEMP=$(getopt -o +t: --long tag: -n grrun -- "$@")
+
+if [ $? != 0 ] ; then echo "Terminating..." >&2 ; exit 1 ; fi
+
+# Note the quotes around `$TEMP': they are essential!
+eval set -- "$TEMP"
+
+while true ; do
+        case "$1" in
+	    -t|--tag) TAG="$2"; shift 2 ;;
+	    --) shift ; break ;;
+	    *) echo "Internal error!" ; exit 1 ;;
+	esac
+done
+
 exec docker run \
      -e DISPLAY -v ${XAUTHORITY:-$HOME/.Xauthority}:/root/.Xauthority \
      -e PULSE_SERVER=unix:/pulse/socket -e PULSE_COOKIE=/pulse/cookie -v /run/user/$UID/pulse/native:/pulse/socket -v $HOME/.config/pulse/cookie:/pulse/cookie \
      -v /home/w1xm-admin:/home/w1xm-admin \
-     --privileged --net=host --ipc=host -it w1xm/base "$@"
+     --privileged --net=host --ipc=host -it "$TAG" "$@"
