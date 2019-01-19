@@ -80,15 +80,15 @@ class RigctlHandler(SocketServer.StreamRequestHandler):
                 self.wfile.write("USB\n15000\n")
                 rprt = 0
             elif cmd in ("f", "get_freq"):
-                freq = float(self.server.get_freq())
+                freq = self.server.get_freq()
                 logging.info("freq = %f", freq)
+                self.wfile.write("%d\n" % freq)
                 rprt = 0
             elif cmd in ("F", "set_freq"):
                 if len(args) != 1:
                     rprt = -22
                 else:
                     freq = float(args[0])
-                    self.set_freq(freq)
                     self.server.set_freq(freq)
                     rprt = 0
                 send_rprt = True
@@ -118,15 +118,15 @@ class RigctlServer(SocketServer.ThreadingTCPServer):
         self.tb.set_RF_frequency(freq)
 
     def get_freq(self):
-        self.tb.get_RF_frequency()
+        return self.tb.get_RF_frequency()
 
     def set_ptt(self, ptt):
         self.tb.set_ptt_command(ptt)
 
     def get_ptt(self):
-        self.tb.get_ptt_command()
+        return self.tb.get_ptt_command()
     
-    def __init__(self, tb, set_freq):
+    def __init__(self, tb):
         self.tb = tb
         SocketServer.TCPServer.__init__(self, ("localhost", 4532), RigctlHandler)
         self.rci = client.Client('ws://localhost:8502/api/ws')
