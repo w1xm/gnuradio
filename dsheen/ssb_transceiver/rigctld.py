@@ -113,21 +113,23 @@ class RigctlHandler(SocketServer.StreamRequestHandler):
 
 class RigctlServer(SocketServer.ThreadingTCPServer):
     allow_reuse_address = True
+    daemon_threads = True
 
     def set_freq(self, freq):
-        self.tb.set_RF_frequency(freq)
+        self.signal.set_RF_frequency.emit(freq)
 
     def get_freq(self):
         return self.tb.get_RF_frequency()
 
     def set_ptt(self, ptt):
-        self.tb.set_ptt_command(ptt)
+        self.signal.set_ptt_command.emit(ptt)
 
     def get_ptt(self):
         return self.tb.get_ptt_command()
     
-    def __init__(self, tb):
+    def __init__(self, tb, signal):
         self.tb = tb
+        self.signal = signal
         SocketServer.TCPServer.__init__(self, ("localhost", 4532), RigctlHandler)
         self.rci = client.Client('ws://localhost:8502/api/ws')
 

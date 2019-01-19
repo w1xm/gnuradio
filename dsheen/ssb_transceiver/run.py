@@ -7,8 +7,9 @@ import rigctld
 from PyQt4 import Qt, QtCore
 from gnuradio import gr
 
-#class Signal(QtCore.QObject):
-#    set_freq = QtCore.pyqtSignal(int)
+class Signal(QtCore.QObject):
+    set_RF_frequency = QtCore.pyqtSignal(int)
+    set_ptt_command = QtCore.pyqtSignal(bool)
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format="%(asctime)-15s %(levelname)s %(message)s")
@@ -24,16 +25,16 @@ if __name__ == '__main__':
     tb = top_block.top_block()
     tb.start()
     tb.show()
-#    signal = Signal()
-#    signal.set_freq.connect(tb.set_freq)
-    def runRigctld():
-        s = rigctld.RigctlServer(tb)#, signal.set_freq.emit)
-        s.serve_forever()
-    t = threading.Thread(target=runRigctld)
+    signal = Signal()
+    signal.set_RF_frequency.connect(tb.set_RF_frequency)
+    signal.set_ptt_command.connect(tb.set_ptt_command)
+    s = rigctld.RigctlServer(tb, signal)
+    t = threading.Thread(target=s.serve_forever)
     t.daemon = True
     t.start()
 
     def quitting():
+        s.shutdown()
         tb.stop()
         tb.wait()
     qapp.connect(qapp, Qt.SIGNAL("aboutToQuit()"), quitting)
