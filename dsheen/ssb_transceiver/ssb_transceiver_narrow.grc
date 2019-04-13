@@ -581,7 +581,7 @@
     </param>
     <param>
       <key>value</key>
-      <value>4096e3</value>
+      <value>4096e3+1</value>
     </param>
   </block>
   <block>
@@ -1180,7 +1180,7 @@
     </param>
     <param>
       <key>high_cutoff_freq</key>
-      <value>5000</value>
+      <value>2900</value>
     </param>
     <param>
       <key>id</key>
@@ -1259,7 +1259,7 @@
     </param>
     <param>
       <key>high_cutoff_freq</key>
-      <value>5000</value>
+      <value>2700</value>
     </param>
     <param>
       <key>id</key>
@@ -1283,7 +1283,7 @@
     </param>
     <param>
       <key>samp_rate</key>
-      <value>256e3</value>
+      <value>audio_samp_rate*dec_rate_2</value>
     </param>
     <param>
       <key>width</key>
@@ -1377,11 +1377,11 @@
     </param>
     <param>
       <key>maxoutbuf</key>
-      <value>64</value>
+      <value>0</value>
     </param>
     <param>
       <key>minoutbuf</key>
-      <value>8</value>
+      <value>0</value>
     </param>
     <param>
       <key>vlen</key>
@@ -1812,11 +1812,11 @@
     </param>
     <param>
       <key>maxoutbuf</key>
-      <value>2048</value>
+      <value>4096</value>
     </param>
     <param>
       <key>minoutbuf</key>
-      <value>512</value>
+      <value>1024</value>
     </param>
     <param>
       <key>oversample</key>
@@ -1970,7 +1970,7 @@
     </param>
     <param>
       <key>samp_rate</key>
-      <value>samp_rate</value>
+      <value>audio_samp_rate*dec_rate_2*dec_rate_1</value>
     </param>
     <param>
       <key>width</key>
@@ -2613,11 +2613,11 @@ def set_ptt(ptt, set_ptt_allowed):
     </param>
     <param>
       <key>ymax</key>
-      <value>spectrum_max-9</value>
+      <value>spectrum_max-13</value>
     </param>
     <param>
       <key>ymin</key>
-      <value>spectrum_min-9</value>
+      <value>spectrum_min-13</value>
     </param>
     <param>
       <key>units</key>
@@ -3916,7 +3916,7 @@ def set_ptt(ptt, set_ptt_allowed):
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(752, 460)</value>
+      <value>(760, 468)</value>
     </param>
     <param>
       <key>gui_hint</key>
@@ -3936,11 +3936,11 @@ def set_ptt(ptt, set_ptt_allowed):
     </param>
     <param>
       <key>int_max</key>
-      <value>spectrum_max-10</value>
+      <value>spectrum_max-13</value>
     </param>
     <param>
       <key>int_min</key>
-      <value>spectrum_min-10</value>
+      <value>spectrum_min-13</value>
     </param>
     <param>
       <key>legend</key>
@@ -4206,7 +4206,7 @@ def set_ptt(ptt, set_ptt_allowed):
     </param>
     <param>
       <key>maxoutbuf</key>
-      <value>0</value>
+      <value>4096</value>
     </param>
     <param>
       <key>minoutbuf</key>

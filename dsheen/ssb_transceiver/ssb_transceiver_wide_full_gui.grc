@@ -164,33 +164,6 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(440, 156)</value>
-    </param>
-    <param>
-      <key>_rotation</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>id</key>
-      <value>audio_samp_rate</value>
-    </param>
-    <param>
-      <key>value</key>
-      <value>48e3</value>
-    </param>
-  </block>
-  <block>
-    <key>variable</key>
-    <param>
-      <key>comment</key>
-      <value></value>
-    </param>
-    <param>
-      <key>_enabled</key>
-      <value>True</value>
-    </param>
-    <param>
-      <key>_coordinate</key>
       <value>(904, 20)</value>
     </param>
     <param>
@@ -204,60 +177,6 @@
     <param>
       <key>value</key>
       <value>int(integration_time*samp_rate/float(num_pts*int(0.05*samp_rate/float(num_pts))))</value>
-    </param>
-  </block>
-  <block>
-    <key>variable</key>
-    <param>
-      <key>comment</key>
-      <value></value>
-    </param>
-    <param>
-      <key>_enabled</key>
-      <value>True</value>
-    </param>
-    <param>
-      <key>_coordinate</key>
-      <value>(248, 156)</value>
-    </param>
-    <param>
-      <key>_rotation</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>id</key>
-      <value>dec_rate_1</value>
-    </param>
-    <param>
-      <key>value</key>
-      <value>16</value>
-    </param>
-  </block>
-  <block>
-    <key>variable</key>
-    <param>
-      <key>comment</key>
-      <value></value>
-    </param>
-    <param>
-      <key>_enabled</key>
-      <value>True</value>
-    </param>
-    <param>
-      <key>_coordinate</key>
-      <value>(344, 156)</value>
-    </param>
-    <param>
-      <key>_rotation</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>id</key>
-      <value>dec_rate_2</value>
-    </param>
-    <param>
-      <key>value</key>
-      <value>1</value>
     </param>
   </block>
   <block>
@@ -581,7 +500,7 @@
     </param>
     <param>
       <key>value</key>
-      <value>4096e3</value>
+      <value>4.096e6</value>
     </param>
   </block>
   <block>
@@ -1058,7 +977,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(1144, 292)</value>
+      <value>(1144, 396)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1235,7 +1154,7 @@
     </param>
     <param>
       <key>decim</key>
-      <value>1</value>
+      <value>256/48</value>
     </param>
     <param>
       <key>_enabled</key>
@@ -1247,7 +1166,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(576, 332)</value>
+      <value>(576, 348)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1314,7 +1233,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(936, 392)</value>
+      <value>(792, 408)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1361,7 +1280,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(976, 300)</value>
+      <value>(968, 404)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1377,11 +1296,11 @@
     </param>
     <param>
       <key>maxoutbuf</key>
-      <value>64</value>
+      <value>0</value>
     </param>
     <param>
       <key>minoutbuf</key>
-      <value>8</value>
+      <value>0</value>
     </param>
     <param>
       <key>vlen</key>
@@ -1645,7 +1564,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(968, 508)</value>
+      <value>(960, 508)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1812,11 +1731,11 @@
     </param>
     <param>
       <key>maxoutbuf</key>
-      <value>2048</value>
+      <value>0</value>
     </param>
     <param>
       <key>minoutbuf</key>
-      <value>512</value>
+      <value>0</value>
     </param>
     <param>
       <key>oversample</key>
@@ -1851,15 +1770,15 @@
     </param>
     <param>
       <key>cutoff_freq</key>
-      <value>15e3</value>
+      <value>9e3</value>
     </param>
     <param>
       <key>decim</key>
-      <value>8</value>
+      <value>int(samp_rate/int(samp_rate/256e3)/20e3)</value>
     </param>
     <param>
       <key>_enabled</key>
-      <value>1</value>
+      <value>True</value>
     </param>
     <param>
       <key>type</key>
@@ -1867,7 +1786,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(576, 492)</value>
+      <value>(576, 508)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1895,7 +1814,7 @@
     </param>
     <param>
       <key>samp_rate</key>
-      <value>samp_rate/dec_rate_1</value>
+      <value>samp_rate/int(samp_rate/256e3)</value>
     </param>
     <param>
       <key>width</key>
@@ -1930,7 +1849,7 @@
     </param>
     <param>
       <key>decim</key>
-      <value>dec_rate_1</value>
+      <value>int(samp_rate/256e3)</value>
     </param>
     <param>
       <key>_enabled</key>
@@ -1942,7 +1861,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(360, 412)</value>
+      <value>(384, 356)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1974,7 +1893,7 @@
     </param>
     <param>
       <key>width</key>
-      <value>10e3</value>
+      <value>1e3</value>
     </param>
     <param>
       <key>win</key>
@@ -2074,7 +1993,7 @@ def set_ptt(ptt, set_ptt_allowed):
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(360, 220)</value>
+      <value>(384, 164)</value>
     </param>
     <param>
       <key>gui_hint</key>
@@ -2341,7 +2260,7 @@ def set_ptt(ptt, set_ptt_allowed):
     </param>
     <param>
       <key>bw</key>
-      <value>256e3/8</value>
+      <value>samp_rate/int(samp_rate/256e3)/(int(samp_rate/int(samp_rate/256e3)/20e3))</value>
     </param>
     <param>
       <key>alias</key>
@@ -2365,7 +2284,7 @@ def set_ptt(ptt, set_ptt_allowed):
     </param>
     <param>
       <key>_enabled</key>
-      <value>1</value>
+      <value>True</value>
     </param>
     <param>
       <key>fftsize</key>
@@ -2373,7 +2292,7 @@ def set_ptt(ptt, set_ptt_allowed):
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(752, 540)</value>
+      <value>(784, 540)</value>
     </param>
     <param>
       <key>gui_hint</key>
@@ -2613,11 +2532,11 @@ def set_ptt(ptt, set_ptt_allowed):
     </param>
     <param>
       <key>ymax</key>
-      <value>spectrum_max-9</value>
+      <value>spectrum_max-13</value>
     </param>
     <param>
       <key>ymin</key>
-      <value>spectrum_min-9</value>
+      <value>spectrum_min-13</value>
     </param>
     <param>
       <key>units</key>
@@ -2959,7 +2878,7 @@ def set_ptt(ptt, set_ptt_allowed):
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(192, 748)</value>
+      <value>(160, 764)</value>
     </param>
     <param>
       <key>gui_hint</key>
@@ -3326,7 +3245,7 @@ def set_ptt(ptt, set_ptt_allowed):
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(968, 828)</value>
+      <value>(960, 828)</value>
     </param>
     <param>
       <key>gui_hint</key>
@@ -3685,7 +3604,7 @@ def set_ptt(ptt, set_ptt_allowed):
     </param>
     <param>
       <key>_enabled</key>
-      <value>1</value>
+      <value>True</value>
     </param>
     <param>
       <key>fftsize</key>
@@ -3693,7 +3612,7 @@ def set_ptt(ptt, set_ptt_allowed):
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(360, 316)</value>
+      <value>(384, 260)</value>
     </param>
     <param>
       <key>gui_hint</key>
@@ -3888,7 +3807,7 @@ def set_ptt(ptt, set_ptt_allowed):
     </param>
     <param>
       <key>bw</key>
-      <value>256e3/8</value>
+      <value>samp_rate/int(samp_rate/256e3)/(int(samp_rate/int(samp_rate/256e3)/20e3))</value>
     </param>
     <param>
       <key>alias</key>
@@ -3908,7 +3827,7 @@ def set_ptt(ptt, set_ptt_allowed):
     </param>
     <param>
       <key>_enabled</key>
-      <value>1</value>
+      <value>True</value>
     </param>
     <param>
       <key>fftsize</key>
@@ -3916,7 +3835,7 @@ def set_ptt(ptt, set_ptt_allowed):
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(752, 460)</value>
+      <value>(784, 452)</value>
     </param>
     <param>
       <key>gui_hint</key>
@@ -3936,11 +3855,11 @@ def set_ptt(ptt, set_ptt_allowed):
     </param>
     <param>
       <key>int_max</key>
-      <value>spectrum_max-10</value>
+      <value>spectrum_max-13</value>
     </param>
     <param>
       <key>int_min</key>
-      <value>spectrum_min-10</value>
+      <value>spectrum_min-13</value>
     </param>
     <param>
       <key>legend</key>
@@ -4119,124 +4038,6 @@ def set_ptt(ptt, set_ptt_allowed):
     </param>
     <param>
       <key>decim</key>
-      <value>3</value>
-    </param>
-    <param>
-      <key>_enabled</key>
-      <value>True</value>
-    </param>
-    <param>
-      <key>fbw</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>_coordinate</key>
-      <value>(600, 676)</value>
-    </param>
-    <param>
-      <key>_rotation</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>id</key>
-      <value>rational_resampler_xxx_0</value>
-    </param>
-    <param>
-      <key>interp</key>
-      <value>16</value>
-    </param>
-    <param>
-      <key>maxoutbuf</key>
-      <value>4096</value>
-    </param>
-    <param>
-      <key>minoutbuf</key>
-      <value>1024</value>
-    </param>
-    <param>
-      <key>taps</key>
-      <value></value>
-    </param>
-    <param>
-      <key>type</key>
-      <value>ccc</value>
-    </param>
-  </block>
-  <block>
-    <key>rational_resampler_xxx</key>
-    <param>
-      <key>alias</key>
-      <value></value>
-    </param>
-    <param>
-      <key>comment</key>
-      <value></value>
-    </param>
-    <param>
-      <key>affinity</key>
-      <value></value>
-    </param>
-    <param>
-      <key>decim</key>
-      <value>16</value>
-    </param>
-    <param>
-      <key>_enabled</key>
-      <value>True</value>
-    </param>
-    <param>
-      <key>fbw</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>_coordinate</key>
-      <value>(760, 364)</value>
-    </param>
-    <param>
-      <key>_rotation</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>id</key>
-      <value>rational_resampler_xxx_1</value>
-    </param>
-    <param>
-      <key>interp</key>
-      <value>3</value>
-    </param>
-    <param>
-      <key>maxoutbuf</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>minoutbuf</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>taps</key>
-      <value></value>
-    </param>
-    <param>
-      <key>type</key>
-      <value>ccc</value>
-    </param>
-  </block>
-  <block>
-    <key>rational_resampler_xxx</key>
-    <param>
-      <key>alias</key>
-      <value></value>
-    </param>
-    <param>
-      <key>comment</key>
-      <value></value>
-    </param>
-    <param>
-      <key>affinity</key>
-      <value></value>
-    </param>
-    <param>
-      <key>decim</key>
       <value>1</value>
     </param>
     <param>
@@ -4249,7 +4050,7 @@ def set_ptt(ptt, set_ptt_allowed):
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(776, 676)</value>
+      <value>(584, 692)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -4257,11 +4058,11 @@ def set_ptt(ptt, set_ptt_allowed):
     </param>
     <param>
       <key>id</key>
-      <value>rational_resampler_xxx_2</value>
+      <value>rational_resampler_xxx_0</value>
     </param>
     <param>
       <key>interp</key>
-      <value>16</value>
+      <value>int(samp_rate/48e3)</value>
     </param>
     <param>
       <key>maxoutbuf</key>
@@ -4294,7 +4095,7 @@ def set_ptt(ptt, set_ptt_allowed):
   </connection>
   <connection>
     <source_block_id>band_pass_filter_0_0</source_block_id>
-    <sink_block_id>rational_resampler_xxx_1</sink_block_id>
+    <sink_block_id>blocks_complex_to_real_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>
@@ -4378,24 +4179,12 @@ def set_ptt(ptt, set_ptt_allowed):
   </connection>
   <connection>
     <source_block_id>rational_resampler_xxx_0</source_block_id>
-    <sink_block_id>rational_resampler_xxx_2</sink_block_id>
-    <source_key>0</source_key>
-    <sink_key>0</sink_key>
-  </connection>
-  <connection>
-    <source_block_id>rational_resampler_xxx_1</source_block_id>
-    <sink_block_id>blocks_complex_to_real_0</sink_block_id>
-    <source_key>0</source_key>
-    <sink_key>0</sink_key>
-  </connection>
-  <connection>
-    <source_block_id>rational_resampler_xxx_2</source_block_id>
     <sink_block_id>limesdr_sink_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>
   <connection>
-    <source_block_id>rational_resampler_xxx_2</source_block_id>
+    <source_block_id>rational_resampler_xxx_0</source_block_id>
     <sink_block_id>qtgui_time_sink_x_1</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
