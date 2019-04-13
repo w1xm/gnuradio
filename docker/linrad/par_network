@@ -1,0 +1,21 @@
+send group [0]
+receive group [0]
+port [50000]
+send_raw [0]
+send_fft1 [0]
+send_fft2 [0]
+send_timf2 [0]
+send_baseb16 [0]
+send_baseb24 [0]
+receive_raw [65536]
+receive_fft1 [0]
+receive_baseb16 [0]
+receive_baseb24 [0]
+receive_timf2 [0]
+check [2231122]
+
+Change only between brackets.
+If file has errors, Linrad will ignore file and use defaults
+or prompt for a complete set of new parameters
+
+Linrad-04.14a
