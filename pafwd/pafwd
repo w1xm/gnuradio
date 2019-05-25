@@ -1,0 +1,63 @@
+#!/bin/bash
+
+set -ex
+
+fwdport=$1
+shift
+
+#server_ip=$(echo "$SSH_CLIENT" | awk '{ print $1 }')
+
+export PULSE_SERVER="localhost"
+
+while true; do
+    case "$1" in
+	--new)
+	    socket=$(mktemp --tmpdir pafwd.XXXXXX)
+
+	    dbus-launch \
+		--exit-with-session \
+		pulseaudio -n --disable-shm --use-pid-file=no \
+		--log-target=syslog \
+		--exit-idle-time=-1 \
+		--load "module-native-protocol-unix socket=$socket" \
+		--load "module-always-sink" \
+		--load "module-null-sink sink_name=TX sink_properties=device.description='TX'" \
+		-vv --daemonize=yes
+#		--load "module-rescue-streams" \
+#		--load "module-intended-roles" \
+#		--load "module-suspend-on-idle" \
+#		--load "module-switch-on-port-available" \
+
+	    export PULSE_SERVER="unix:$socket"
+	    function killpulse {
+		pactl exit
+	    }
+	    trap killpulse EXIT
+	    parent=$$
+	    (trap killpulse HUP; while true; do sleep 3600; done) &
+	    ;;
+	--)
+	    shift
+	    break
+	    ;;
+	*)
+	    break
+	    ;;
+    esac
+    shift
+done
+python - <<EOF
+from pulsectl import Pulse
+with Pulse('start-eme') as pulse:
+  pulse.module_load('module-tunnel-sink', 'server=tcp:localhost:$fwdport')
+  pulse.module_load('module-tunnel-source', 'server=tcp:localhost:$fwdport')
+EOF
+export PULSE_SINK=tunnel-sink.tcp_localhost_$fwdport
+export PULSE_SOURCE=tunnel-source.tcp_localhost_$fwdport
+echo "PulseAudio connected"
+
+if [ $# -eq 0 ]; then
+    exec "$SHELL" -l
+else
+    exec "$@"
+fi
