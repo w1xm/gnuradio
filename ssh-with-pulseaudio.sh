@@ -1,0 +1,30 @@
+#!/bin/bash
+set -ex
+user=w1xm-admin
+server=w1xm-radar-1.mit.edu
+server_ip=$(getent hosts "$server" | awk '{ print $1 }')
+
+# Allow TCP connections to the local PulseAudio
+pacmd load-module module-native-protocol-tcp "auth-anonymous=1 auth-ip-acl=127.0.0.0/8;18.0.0.0/9;10.0.0.0/8"
+
+# Start ssh connection with X11 forwarding
+ssh -M -S /tmp/ssh.$$ -N -Y -f -l "$user" "$server"
+function finish {
+    ssh -S /tmp/ssh.$$ -O exit -l "$user" "$server"
+}
+trap finish EXIT
+
+# Start pulseaudio forwarding
+paport=$(ssh -S /tmp/ssh.$$ -O forward -R 0:localhost:4713 -l "$user" "$server")
+# Start app or login session
+ssh -S /tmp/ssh.$$ -Y -t -l "$user" "$server" "bin/pafwd" "$paport" "--new" "--" "$@"
+
+
+#python - <<EOF
+#from pulsectl import Pulse
+#with Pulse('start-eme') as pulse:
+#  pulse.module_load('module-tunnel-sink', 'server=$server_ip')
+#  pulse.module_load('module-tunnel-source', 'server=$server_ip')
+#EOF
+#echo "PulseAudio connected"
+#exec ssh -Y "$user@$server"
