@@ -30,8 +30,15 @@ if [ -t 0 ] ; then
     TTY="-t"
 fi
 
+PULSE_SOCKET=/run/user/$UID/pulse/native
+case "$PULSE_SERVER" in
+    unix:*)
+	PULSE_SOCKET=${PULSE_SERVER#unix:}
+	;;
+esac
+
 exec docker run \
      -e DISPLAY -v ${XAUTHORITY:-$HOME/.Xauthority}:/root/.Xauthority \
-     -e PULSE_SERVER=unix:/pulse/socket -e PULSE_COOKIE=/pulse/cookie -v /run/user/$UID/pulse/native:/pulse/socket -v $HOME/.config/pulse/cookie:/pulse/cookie \
+     -e PULSE_SERVER=unix:/pulse/socket -e PULSE_COOKIE=/pulse/cookie -v $PULSE_SOCKET:/pulse/socket -v $HOME/.config/pulse/cookie:/pulse/cookie \
      -v /home/w1xm-admin:/home/w1xm-admin \
      --privileged --net=host --ipc=host -i $TTY "$TAG" "$@"
