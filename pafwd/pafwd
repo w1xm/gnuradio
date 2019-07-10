@@ -22,6 +22,7 @@ while true; do
 		--load "module-native-protocol-unix socket=$socket" \
 		--load "module-always-sink" \
 		--load "module-null-sink sink_name=TX sink_properties=device.description='TX'" \
+		--load "module-switch-on-connect" \
 		-vv --daemonize=yes
 #		--load "module-rescue-streams" \
 #		--load "module-intended-roles" \
