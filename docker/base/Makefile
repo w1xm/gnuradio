@@ -1,2 +1,2 @@
 image: Dockerfile
-	docker build  --build-arg makewidth=16 -t w1xm/base .
+	docker build  --build-arg makewidth=4 -t w1xm/base .

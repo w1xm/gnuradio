@@ -9,8 +9,10 @@ ARG makewidth=2
 
 RUN pybombs config makewidth $makewidth
 
-RUN DEBIAN_FRONTEND=noninteractive apt-get update -q
+RUN DEBIAN_FRONTEND=noninteractive apt-get full-upgrade -y
 RUN pybombs install apache-thrift
+# Needed by uhd
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y python3-mako python3-requests python3-numpy python3-setuptools
 RUN pybombs install uhd
 RUN pybombs -v install gnuradio
 RUN pybombs install limesuite
