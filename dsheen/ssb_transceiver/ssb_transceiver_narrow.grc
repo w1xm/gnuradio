@@ -1991,7 +1991,7 @@
       <key>source_code</key>
       <value># this module will be imported in the into your flowgraph
 from rci import client
-_client = client.Client('ws://localhost:8502/api/ws')
+_client = client.Client()
 _ptt = False
 def set_ptt(ptt, set_ptt_allowed):
 	global _ptt
