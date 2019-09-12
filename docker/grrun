@@ -10,7 +10,7 @@
 
 TAG=w1xm/base
 
-TEMP=$(getopt -o +t: --long tag: -n grrun -- "$@")
+TEMP=$(getopt -o +t: --long tag:,extra-args: -n grrun -- "$@")
 
 if [ $? != 0 ] ; then echo "Terminating..." >&2 ; exit 1 ; fi
 
@@ -20,6 +20,7 @@ eval set -- "$TEMP"
 while true ; do
         case "$1" in
 	    -t|--tag) TAG="$2"; shift 2 ;;
+	    --extra-args) EXTRA="$2"; shift 2 ;;
 	    --) shift ; break ;;
 	    *) echo "Internal error!" ; exit 1 ;;
 	esac
@@ -40,5 +41,6 @@ esac
 exec docker run \
      -e DISPLAY -v ${XAUTHORITY:-$HOME/.Xauthority}:/root/.Xauthority \
      -e PULSE_SERVER=unix:/pulse/socket -e PULSE_COOKIE=/pulse/cookie -v $PULSE_SOCKET:/pulse/socket -v $HOME/.config/pulse/cookie:/pulse/cookie \
-     -v /home/w1xm-admin:/home/w1xm-admin \
-     --privileged --net=host --ipc=host -i $TTY "$TAG" "$@"
+     -v $HOME:$HOME \
+     -e RCI_ADDRESS -e RCI_PASSWORD \
+     --privileged --net=host --ipc=host -i $TTY ${EXTRA:-} "$TAG" "$@"
