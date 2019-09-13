@@ -2,7 +2,17 @@
 set -ex
 user=w1xm-admin
 server=w1xm-radar-1.mit.edu
-server_ip=$(getent hosts "$server" | awk '{ print $1 }')
+#server_ip=$(getent hosts "$server" | awk '{ print $1 }')
+
+while true ; do
+    case "$1" in
+	-l) user="$2"; shift 2 ;;
+	-h) server="$2"; shift 2 ;;
+	--) shift ; break ;;
+	*) break ;;
+    esac
+done
+
 
 # Allow TCP connections to the local PulseAudio
 pacmd load-module module-native-protocol-tcp "auth-anonymous=1 auth-ip-acl=127.0.0.0/8;18.0.0.0/9;10.0.0.0/8"
