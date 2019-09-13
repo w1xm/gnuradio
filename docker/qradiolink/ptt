@@ -1,0 +1,11 @@
+#!/usr/bin/env python2
+
+import sys
+from rci import client
+
+c = client.Client()
+
+if sys.argv[1] == "tx":
+    c.set_band_tx(0, True)
+else:
+    c.set_band_rx(0, True)
