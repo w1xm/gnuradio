@@ -25,4 +25,6 @@ RUN cmake --build . --target install
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y alsa-utils pulseaudio-utils apulse libasound2-plugins libqt5multimedia5-plugins
 RUN sed -Ei '/enable-shm/c enable-shm = no' /etc/pulse/client.conf
 
+COPY WSJT-X.ini /root/.config/
+
 CMD /usr/local/bin/wsjtx
