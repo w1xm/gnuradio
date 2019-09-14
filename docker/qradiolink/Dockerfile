@@ -12,6 +12,7 @@ WORKDIR /work/qradiolink/build
 RUN qmake "INCLUDEPATH+=/pybombs/include" ..
 RUN . /pybombs/setup_env.sh && make
 
-COPY ptt .
+COPY ptt /
+COPY qradiolink.cfg /root/.config/
 
 CMD /work/qradiolink/build/qradiolink
