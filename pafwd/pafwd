@@ -7,12 +7,16 @@ shift
 
 #server_ip=$(echo "$SSH_CLIENT" | awk '{ print $1 }')
 
+module_base_name=tcp_localhost_$fwdport
+
 export PULSE_SERVER="localhost"
 
 while true; do
     case "$1" in
 	--new)
 	    socket=$(mktemp --tmpdir pafwd.XXXXXX)
+
+	    module_base_name=tunnel
 
 	    dbus-launch \
 		--exit-with-session \
@@ -21,7 +25,7 @@ while true; do
 		--exit-idle-time=-1 \
 		--load "module-native-protocol-unix socket=$socket" \
 		--load "module-always-sink" \
-		--load "module-null-sink sink_name=TX sink_properties=device.description='TX'" \
+		--load "module-null-sink sink_name=TX sink_properties=device.description='TX' rate=48000" \
 		--load "module-switch-on-connect" \
 		-vv --daemonize=yes
 #		--load "module-rescue-streams" \
@@ -47,14 +51,14 @@ while true; do
     esac
     shift
 done
+export PULSE_SINK=tunnel-sink.$module_base_name
+export PULSE_SOURCE=tunnel-source.$module_base_name
 python - <<EOF
 from pulsectl import Pulse
 with Pulse('start-eme') as pulse:
-  pulse.module_load('module-tunnel-sink', 'server=tcp:localhost:$fwdport')
-  pulse.module_load('module-tunnel-source', 'server=tcp:localhost:$fwdport')
+  pulse.module_load('module-tunnel-sink', 'server=tcp:localhost:$fwdport sink_name=$PULSE_SINK rate=48000')
+  pulse.module_load('module-tunnel-source', 'server=tcp:localhost:$fwdport source_name=$PULSE_SOURCE rate=48000')
 EOF
-export PULSE_SINK=tunnel-sink.tcp_localhost_$fwdport
-export PULSE_SOURCE=tunnel-source.tcp_localhost_$fwdport
 echo "PulseAudio connected"
 
 if [ $# -eq 0 ]; then
