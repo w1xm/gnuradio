@@ -36,11 +36,33 @@ class RigctlHandler(SocketServer.StreamRequestHandler):
                 self.wfile.write("0\n") # Protocol version
                 self.wfile.write("1\n") # Rig model
                 self.wfile.write("2\n") # ITU region
+                FREQ_RANGE_FMT = "%(startf)lf %(endf)lf %(modes)lx %(low_power)d %(high_power)d %(vfo)x %(ant)x\n"
                 # RX Freq ranges
+                # startf endf modes low_power high_power vfo ant
+                # %lf    %lf  %llx  %d        %d         %x  %x
+                self.wfile.write(FREQ_RANGE_FMT % {
+                    'startf': 1280e6,
+                    'endf': 1300e6,
+                    'modes': 1 << 2, # USB only
+                    'low_power': -1,
+                    'high_power': -1,
+                    'vfo': 1, # VFOA only
+                    'ant': 1, # Antenna 1 only
+                })
                 self.wfile.write("0 0 0 0 0 0 0\n") # End of RX freq range list
                 # TX Freq ranges
+                self.wfile.write(FREQ_RANGE_FMT % {
+                    'startf': 1280e6,
+                    'endf': 1300e6,
+                    'modes': 1 << 2, # USB only
+                    'low_power': 1,
+                    'high_power': 100000,
+                    'vfo': 1, # VFOA only
+                    'ant': 1, # Antenna 1 only
+                })
                 self.wfile.write("0 0 0 0 0 0 0\n") # End of TX freq range list
                 # Tuning step size
+                self.wfile.write("%lx %ld\n" % (1 << 2, 1)) # USB allows 1 Hz tuning
                 self.wfile.write("0 0\n") # End of tuning step list
                 # Filter list
                 self.wfile.write("0 0\n") # End of filter list
@@ -59,6 +81,7 @@ class RigctlHandler(SocketServer.StreamRequestHandler):
                         0, # has_set_parm
                         ):
                     self.wfile.write("0x%x\n" % value)
+                # TODO: Support RIG_LEVEL_RF (float 0-1), RIG_LEVEL_AF (float 0-1), RIG_LEVEL_STRENGTH (int dB relative S9)
                 rprt = 0
             elif cmd in ("1", "dump_caps"):
                 self.wfile.write("""Model name: ShinySDR
@@ -71,10 +94,10 @@ class RigctlHandler(SocketServer.StreamRequestHandler):
     """)
                 rprt = 0
             elif cmd in ("v", "get_vfo"):
-                self.wfile.write("VFO\n")
+                self.wfile.write("VFOA\n")
                 rprt = 0
             elif cmd in ("s", "get_split"):
-                self.wfile.write("0\nVFO\n")
+                self.wfile.write("0\nVFOA\n")
                 rprt = 0
             elif cmd in ("m", "get_mode"):
                 self.wfile.write("USB\n15000\n")
