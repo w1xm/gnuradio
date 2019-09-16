@@ -14,8 +14,10 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -y nasm
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y pkg-config libtool automake cmake git xxd pandoc libusb-dev libasound-dev
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y libx11-dev libusb-dev portaudio19-dev
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y libftdi-dev libusb-1.0-0-dev libxext-dev 
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y libc6-dev-i386
 
 RUN ./configure --with-help
 RUN make xlinrad64
+RUN make xlinrad
 COPY par_* .
 #RUN make sim
