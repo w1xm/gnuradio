@@ -76,13 +76,13 @@ class RigctlHandler(SocketServer.StreamRequestHandler):
                 for value in (
                         RIG_FUNC_NONE, # has_get_func
                         RIG_FUNC_NONE, # has_set_func
-                        RIG_LEVEL_PREAMP, # has_get_level
-                        RIG_LEVEL_PREAMP, # has_set_level
+                        RIG_LEVEL_PREAMP|RIG_LEVEL_AF, # has_get_level
+                        RIG_LEVEL_PREAMP|RIG_LEVEL_AF, # has_set_level
                         RIG_PARM_NONE, # has_get_parm
                         RIG_PARM_NONE, # has_set_parm
                         ):
                     self.wfile.write("0x%x\n" % value)
-                # TODO: Support RIG_LEVEL_RF (float 0-1), RIG_LEVEL_AF (float 0-1), RIG_LEVEL_STRENGTH (int dB relative S9)
+                # TODO: Support RIG_LEVEL_RF (float 0-1), RIG_LEVEL_STRENGTH (int dB relative S9)
                 rprt = 0
             elif cmd in ("1", "dump_caps"):
                 self.wfile.write("""Model name: ShinySDR
@@ -138,6 +138,9 @@ class RigctlHandler(SocketServer.StreamRequestHandler):
                     if args[0] == "PREAMP":
                         self.wfile.write("%d\n" % self.server.get_level_preamp())
                         rprt = 0
+                    elif args[0] == "AF":
+                        self.wfile.write("%f\n" % self.server.get_level_af())
+                        rprt = 0
             elif cmd in ("L", "set_level"):
                 if len(args) != 2:
                     rprt = -22
@@ -146,6 +149,8 @@ class RigctlHandler(SocketServer.StreamRequestHandler):
                     if args[0] == "PREAMP":
                         self.server.set_level_preamp(int(args[1]))
                         rprt = 0
+                    elif args[0] == "AF":
+                        self.server.set_level_af(float(args[1]))
                 send_rprt = True
             elif cmd == "q":
                 return
@@ -173,6 +178,12 @@ class RigctlServer(SocketServer.ThreadingTCPServer):
 
     def set_level_preamp(self, gain):
         self.signal.set_rx_gain.emit(gain)
+
+    def get_level_af(self):
+        return self.tb.get_volume()
+
+    def set_level_af(self, volume):
+        self.signal.set_volume.emit(volume)
     
     def __init__(self, tb, signal):
         self.tb = tb
