@@ -12,6 +12,7 @@ class Signal(QtCore.QObject):
     set_ptt_command = QtCore.pyqtSignal(bool)
     set_rx_gain = QtCore.pyqtSignal(int)
     set_volume = QtCore.pyqtSignal(float)
+    set_mic_gain = QtCore.pyqtSignal(float)
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format="%(asctime)-15s %(levelname)s %(message)s")
@@ -32,6 +33,7 @@ if __name__ == '__main__':
     signal.set_ptt_command.connect(tb.set_ptt_command)
     signal.set_rx_gain.connect(tb.set_rx_gain)
     signal.set_volume.connect(tb.set_volume)
+    signal.set_mic_gain.connect(tb.set_mic_gain)
     s = rigctld.RigctlServer(tb, signal)
     t = threading.Thread(target=s.serve_forever)
     t.daemon = True

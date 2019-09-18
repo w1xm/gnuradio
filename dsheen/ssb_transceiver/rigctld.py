@@ -2,6 +2,7 @@ import logging
 import SocketServer
 import time
 from rci import client
+import hamlib_constants
 from hamlib_constants import *
 
 class RigctlHandler(SocketServer.StreamRequestHandler):
@@ -76,8 +77,8 @@ class RigctlHandler(SocketServer.StreamRequestHandler):
                 for value in (
                         RIG_FUNC_NONE, # has_get_func
                         RIG_FUNC_NONE, # has_set_func
-                        RIG_LEVEL_PREAMP|RIG_LEVEL_AF, # has_get_level
-                        RIG_LEVEL_PREAMP|RIG_LEVEL_AF, # has_set_level
+                        RIG_LEVEL_PREAMP|RIG_LEVEL_AF|RIG_LEVEL_MICGAIN, # has_get_level
+                        RIG_LEVEL_PREAMP|RIG_LEVEL_AF|RIG_LEVEL_MICGAIN, # has_set_level
                         RIG_PARM_NONE, # has_get_parm
                         RIG_PARM_NONE, # has_set_parm
                         ):
@@ -90,8 +91,12 @@ class RigctlHandler(SocketServer.StreamRequestHandler):
     Rig type: Other
     Can set Frequency: Y
     Can get Frequency: Y
+    Can get Mode: Y
+    Can get VFO: Y
     Can set PTT: Y
     Can get PTT: Y
+    Can set Level: Y
+    Can get Level: Y
     """)
                 rprt = 0
             elif cmd in ("v", "get_vfo"):
@@ -135,22 +140,25 @@ class RigctlHandler(SocketServer.StreamRequestHandler):
                     rprt = -22
                 else:
                     rprt = -1
-                    if args[0] == "PREAMP":
-                        self.wfile.write("%d\n" % self.server.get_level_preamp())
-                        rprt = 0
-                    elif args[0] == "AF":
-                        self.wfile.write("%f\n" % self.server.get_level_af())
+                    func = getattr(self.server, "get_level_"+args[0].lower())
+                    if func:
+                        fmt = "%d\n"
+                        if RIG_LEVEL_IS_FLOAT(getattr(hamlib_constants, "RIG_LEVEL_"+args[0].upper(), 0)):
+                            fmt = "%f\n"
+                        self.wfile.write(fmt % func())
                         rprt = 0
             elif cmd in ("L", "set_level"):
                 if len(args) != 2:
                     rprt = -22
                 else:
                     rprt = -1
-                    if args[0] == "PREAMP":
-                        self.server.set_level_preamp(int(args[1]))
+                    func = getattr(self.server, "set_level_"+args[0].lower())
+                    if func:
+                        conv = int
+                        if RIG_LEVEL_IS_FLOAT(getattr(hamlib_constants, "RIG_LEVEL_"+args[0].upper(), 0)):
+                            conv = float
+                        func(conv(args[1]))
                         rprt = 0
-                    elif args[0] == "AF":
-                        self.server.set_level_af(float(args[1]))
                 send_rprt = True
             elif cmd == "q":
                 return
@@ -184,6 +192,12 @@ class RigctlServer(SocketServer.ThreadingTCPServer):
 
     def set_level_af(self, volume):
         self.signal.set_volume.emit(volume)
+
+    def get_level_micgain(self):
+        return self.tb.get_mic_gain() / 10
+
+    def set_level_micgain(self, gain):
+        self.signal.set_mic_gain.emit(gain * 10)
     
     def __init__(self, tb, signal):
         self.tb = tb
