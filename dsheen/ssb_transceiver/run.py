@@ -10,6 +10,7 @@ from gnuradio import gr
 class Signal(QtCore.QObject):
     set_RF_frequency = QtCore.pyqtSignal(int)
     set_ptt_command = QtCore.pyqtSignal(bool)
+    set_rx_gain = QtCore.pyqtSignal(int)
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format="%(asctime)-15s %(levelname)s %(message)s")
@@ -28,6 +29,7 @@ if __name__ == '__main__':
     signal = Signal()
     signal.set_RF_frequency.connect(tb.set_RF_frequency)
     signal.set_ptt_command.connect(tb.set_ptt_command)
+    signal.set_rx_gain.connect(tb.set_rx_gain)
     s = rigctld.RigctlServer(tb, signal)
     t = threading.Thread(target=s.serve_forever)
     t.daemon = True

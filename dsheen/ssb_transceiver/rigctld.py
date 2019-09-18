@@ -2,6 +2,7 @@ import logging
 import SocketServer
 import time
 from rci import client
+from hamlib_constants import *
 
 class RigctlHandler(SocketServer.StreamRequestHandler):
     def handle(self):
@@ -43,26 +44,26 @@ class RigctlHandler(SocketServer.StreamRequestHandler):
                 self.wfile.write(FREQ_RANGE_FMT % {
                     'startf': 1280e6,
                     'endf': 1300e6,
-                    'modes': 1 << 2, # USB only
+                    'modes': RIG_MODE_USB,
                     'low_power': -1,
                     'high_power': -1,
-                    'vfo': 1, # VFOA only
-                    'ant': 1, # Antenna 1 only
+                    'vfo': RIG_VFO_A, # VFOA only
+                    'ant': RIG_ANT_1, # Antenna 1 only
                 })
                 self.wfile.write("0 0 0 0 0 0 0\n") # End of RX freq range list
                 # TX Freq ranges
                 self.wfile.write(FREQ_RANGE_FMT % {
                     'startf': 1280e6,
                     'endf': 1300e6,
-                    'modes': 1 << 2, # USB only
+                    'modes': RIG_MODE_USB,
                     'low_power': 1,
                     'high_power': 100000,
-                    'vfo': 1, # VFOA only
-                    'ant': 1, # Antenna 1 only
+                    'vfo': RIG_VFO_A, # VFOA only
+                    'ant': RIG_ANT_1, # Antenna 1 only
                 })
                 self.wfile.write("0 0 0 0 0 0 0\n") # End of TX freq range list
                 # Tuning step size
-                self.wfile.write("%lx %ld\n" % (1 << 2, 1)) # USB allows 1 Hz tuning
+                self.wfile.write("%lx %ld\n" % (RIG_MODE_USB, 1)) # USB allows 1 Hz tuning
                 self.wfile.write("0 0\n") # End of tuning step list
                 # Filter list
                 self.wfile.write("0 0\n") # End of filter list
@@ -70,15 +71,15 @@ class RigctlHandler(SocketServer.StreamRequestHandler):
                 self.wfile.write("0\n") # max XIT
                 self.wfile.write("0\n") # max ifshift
                 self.wfile.write("0\n") # announces
-                self.wfile.write("0 \n") # Preamp gains list
+                self.wfile.write("10 20 30 40 50 60 70 0 \n") # Preamp gains list
                 self.wfile.write("0 \n") # Attenuator losses list
                 for value in (
-                        0, # has_get_func
-                        0, # has_set_func
-                        0, # has_get_level
-                        0, # has_set_level
-                        0, # has_get_parm
-                        0, # has_set_parm
+                        RIG_FUNC_NONE, # has_get_func
+                        RIG_FUNC_NONE, # has_set_func
+                        RIG_LEVEL_PREAMP, # has_get_level
+                        RIG_LEVEL_PREAMP, # has_set_level
+                        RIG_PARM_NONE, # has_get_parm
+                        RIG_PARM_NONE, # has_set_parm
                         ):
                     self.wfile.write("0x%x\n" % value)
                 # TODO: Support RIG_LEVEL_RF (float 0-1), RIG_LEVEL_AF (float 0-1), RIG_LEVEL_STRENGTH (int dB relative S9)
@@ -129,9 +130,26 @@ class RigctlHandler(SocketServer.StreamRequestHandler):
                         self.server.set_ptt(False)
                     rprt = 0
                 send_rprt = True
+            elif cmd in ("l", "get_level"):
+                if len(args) != 1:
+                    rprt = -22
+                else:
+                    rprt = -1
+                    if args[0] == "PREAMP":
+                        self.wfile.write("%d\n" % self.server.get_level_preamp())
+                        rprt = 0
+            elif cmd in ("L", "set_level"):
+                if len(args) != 2:
+                    rprt = -22
+                else:
+                    rprt = -1
+                    if args[0] == "PREAMP":
+                        self.server.set_level_preamp(int(args[1]))
+                        rprt = 0
+                send_rprt = True
             elif cmd == "q":
                 return
-            if send_rprt:
+            if rprt != 0 or send_rprt:
                 self.wfile.write("RPRT %d\n" % rprt)
 
 class RigctlServer(SocketServer.ThreadingTCPServer):
@@ -149,6 +167,12 @@ class RigctlServer(SocketServer.ThreadingTCPServer):
 
     def get_ptt(self):
         return self.tb.get_ptt_command()
+
+    def get_level_preamp(self):
+        return self.tb.get_rx_gain()
+
+    def set_level_preamp(self, gain):
+        self.signal.set_rx_gain.emit(gain)
     
     def __init__(self, tb, signal):
         self.tb = tb
