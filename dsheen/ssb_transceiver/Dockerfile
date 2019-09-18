@@ -8,4 +8,6 @@ WORKDIR /flowgraph/
 COPY *.py /flowgraph/
 RUN . /pybombs/setup_env.sh && grcc -d /flowgraph /src/${flowgraph}
 
+RUN echo "${flowgraph%.grc}" > client_name.txt
+
 CMD /flowgraph/run.py

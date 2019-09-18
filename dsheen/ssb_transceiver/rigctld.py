@@ -154,7 +154,12 @@ class RigctlServer(SocketServer.ThreadingTCPServer):
         self.tb = tb
         self.signal = signal
         SocketServer.TCPServer.__init__(self, ("localhost", 4532), RigctlHandler)
-        self.rci = client.Client()
+        client_name = None
+        try:
+            client_name = open("client_name.txt", "r").read().strip()
+        except IOError:
+            pass
+        self.rci = client.Client(client_name=client_name)
 
 if __name__ == "__main__":
     # Create the server, binding to localhost on port 4532
