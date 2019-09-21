@@ -230,7 +230,7 @@
     </param>
     <param>
       <key>value</key>
-      <value>16</value>
+      <value>4</value>
     </param>
   </block>
   <block>
@@ -257,7 +257,7 @@
     </param>
     <param>
       <key>value</key>
-      <value>1</value>
+      <value>4</value>
     </param>
   </block>
   <block>
@@ -581,7 +581,7 @@
     </param>
     <param>
       <key>value</key>
-      <value>4096e3+1</value>
+      <value>audio_samp_rate*dec_rate_1*dec_rate_2*16/3</value>
     </param>
   </block>
   <block>
@@ -736,7 +736,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>True</value>
+      <value>0</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -1180,7 +1180,7 @@
     </param>
     <param>
       <key>high_cutoff_freq</key>
-      <value>2900</value>
+      <value>2.7e3</value>
     </param>
     <param>
       <key>id</key>
@@ -1247,7 +1247,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(576, 332)</value>
+      <value>(848, 332)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1259,7 +1259,7 @@
     </param>
     <param>
       <key>high_cutoff_freq</key>
-      <value>2700</value>
+      <value>2.7e3</value>
     </param>
     <param>
       <key>id</key>
@@ -1283,7 +1283,7 @@
     </param>
     <param>
       <key>samp_rate</key>
-      <value>audio_samp_rate*dec_rate_2</value>
+      <value>audio_samp_rate</value>
     </param>
     <param>
       <key>width</key>
@@ -1314,7 +1314,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(936, 392)</value>
+      <value>(1040, 392)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1377,11 +1377,11 @@
     </param>
     <param>
       <key>maxoutbuf</key>
-      <value>0</value>
+      <value>64</value>
     </param>
     <param>
       <key>minoutbuf</key>
-      <value>0</value>
+      <value>8</value>
     </param>
     <param>
       <key>vlen</key>
@@ -1524,40 +1524,24 @@
   <block>
     <key>limesdr_sink</key>
     <param>
-      <key>alias</key>
-      <value></value>
+      <key>allow_tcxo_dac</key>
+      <value>0</value>
     </param>
     <param>
-      <key>channel</key>
-      <value>0</value>
+      <key>alias</key>
+      <value></value>
     </param>
     <param>
       <key>analog_bandw_ch0</key>
       <value>5e6</value>
     </param>
     <param>
-      <key>analog_filter_ch0</key>
-      <value>1</value>
-    </param>
-    <param>
-      <key>cmix_mode_ch0</key>
-      <value>0</value>
-    </param>
-    <param>
       <key>calibr_bandw_ch0</key>
       <value>10e6</value>
     </param>
     <param>
-      <key>calibration_ch0</key>
-      <value>1</value>
-    </param>
-    <param>
       <key>digital_bandw_ch0</key>
       <value>3e3</value>
-    </param>
-    <param>
-      <key>digital_filter_ch0</key>
-      <value>1</value>
     </param>
     <param>
       <key>gain_dB_ch0</key>
@@ -1572,35 +1556,15 @@
       <value>1</value>
     </param>
     <param>
-      <key>pa_path_mini</key>
-      <value>1</value>
-    </param>
-    <param>
       <key>analog_bandw_ch1</key>
       <value>5e6</value>
-    </param>
-    <param>
-      <key>analog_filter_ch1</key>
-      <value>1</value>
-    </param>
-    <param>
-      <key>cmix_mode_ch1</key>
-      <value>0</value>
     </param>
     <param>
       <key>calibr_bandw_ch1</key>
       <value>10e6</value>
     </param>
     <param>
-      <key>calibration_ch1</key>
-      <value>0</value>
-    </param>
-    <param>
       <key>digital_bandw_ch1</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>digital_filter_ch1</key>
       <value>0</value>
     </param>
     <param>
@@ -1616,8 +1580,8 @@
       <value>1</value>
     </param>
     <param>
-      <key>chip_mode</key>
-      <value>1</value>
+      <key>channel_mode</key>
+      <value>0</value>
     </param>
     <param>
       <key>comment</key>
@@ -1630,10 +1594,6 @@
     <param>
       <key>serial</key>
       <value>0009060B00471B22</value>
-    </param>
-    <param>
-      <key>device_type</key>
-      <value>2</value>
     </param>
     <param>
       <key>_enabled</key>
@@ -1656,8 +1616,8 @@
       <value>limesdr_sink_0</value>
     </param>
     <param>
-      <key>file_switch</key>
-      <value>0</value>
+      <key>length_tag_name</key>
+      <value></value>
     </param>
     <param>
       <key>oversample</key>
@@ -1671,44 +1631,32 @@
       <key>samp_rate</key>
       <value>samp_rate</value>
     </param>
+    <param>
+      <key>dacVal</key>
+      <value>125</value>
+    </param>
   </block>
   <block>
     <key>limesdr_source</key>
     <param>
-      <key>alias</key>
-      <value></value>
+      <key>allow_tcxo_dac</key>
+      <value>0</value>
     </param>
     <param>
-      <key>channel</key>
-      <value>0</value>
+      <key>alias</key>
+      <value></value>
     </param>
     <param>
       <key>analog_bandw_ch0</key>
       <value>samp_rate</value>
     </param>
     <param>
-      <key>analog_filter_ch0</key>
-      <value>1</value>
-    </param>
-    <param>
-      <key>cmix_mode_ch0</key>
-      <value>0</value>
-    </param>
-    <param>
       <key>calibr_bandw_ch0</key>
       <value>samp_rate</value>
     </param>
     <param>
-      <key>calibration_ch0</key>
-      <value>1</value>
-    </param>
-    <param>
       <key>digital_bandw_ch0</key>
       <value>samp_rate*0.99</value>
-    </param>
-    <param>
-      <key>digital_filter_ch0</key>
-      <value>1</value>
     </param>
     <param>
       <key>gain_dB_ch0</key>
@@ -1719,10 +1667,6 @@
       <value>2</value>
     </param>
     <param>
-      <key>lna_path_mini</key>
-      <value>3</value>
-    </param>
-    <param>
       <key>nco_freq_ch0</key>
       <value>0</value>
     </param>
@@ -1731,27 +1675,11 @@
       <value>5e6</value>
     </param>
     <param>
-      <key>analog_filter_ch1</key>
-      <value>1</value>
-    </param>
-    <param>
-      <key>cmix_mode_ch1</key>
-      <value>0</value>
-    </param>
-    <param>
       <key>calibr_bandw_ch1</key>
       <value>10e6</value>
     </param>
     <param>
-      <key>calibration_ch1</key>
-      <value>0</value>
-    </param>
-    <param>
       <key>digital_bandw_ch1</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>digital_filter_ch1</key>
       <value>0</value>
     </param>
     <param>
@@ -1767,8 +1695,8 @@
       <value>0</value>
     </param>
     <param>
-      <key>chip_mode</key>
-      <value>1</value>
+      <key>channel_mode</key>
+      <value>0</value>
     </param>
     <param>
       <key>comment</key>
@@ -1781,10 +1709,6 @@
     <param>
       <key>serial</key>
       <value>0009060B00471B22</value>
-    </param>
-    <param>
-      <key>device_type</key>
-      <value>2</value>
     </param>
     <param>
       <key>_enabled</key>
@@ -1807,16 +1731,12 @@
       <value>limesdr_source_0</value>
     </param>
     <param>
-      <key>file_switch</key>
-      <value>0</value>
-    </param>
-    <param>
       <key>maxoutbuf</key>
-      <value>4096</value>
+      <value>2048</value>
     </param>
     <param>
       <key>minoutbuf</key>
-      <value>1024</value>
+      <value>512</value>
     </param>
     <param>
       <key>oversample</key>
@@ -1829,6 +1749,10 @@
     <param>
       <key>samp_rate</key>
       <value>samp_rate</value>
+    </param>
+    <param>
+      <key>dacVal</key>
+      <value>125</value>
     </param>
   </block>
   <block>
@@ -1895,7 +1819,7 @@
     </param>
     <param>
       <key>samp_rate</key>
-      <value>samp_rate/dec_rate_1</value>
+      <value>samp_rate/(dec_rate_1*dec_rate_2)</value>
     </param>
     <param>
       <key>width</key>
@@ -1926,7 +1850,7 @@
     </param>
     <param>
       <key>cutoff_freq</key>
-      <value>20e3</value>
+      <value>400e3</value>
     </param>
     <param>
       <key>decim</key>
@@ -1942,7 +1866,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(360, 412)</value>
+      <value>(232, 412)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1950,7 +1874,7 @@
     </param>
     <param>
       <key>gain</key>
-      <value>1.97</value>
+      <value>1</value>
     </param>
     <param>
       <key>id</key>
@@ -1970,7 +1894,82 @@
     </param>
     <param>
       <key>samp_rate</key>
-      <value>audio_samp_rate*dec_rate_2*dec_rate_1</value>
+      <value>samp_rate</value>
+    </param>
+    <param>
+      <key>width</key>
+      <value>100e3</value>
+    </param>
+    <param>
+      <key>win</key>
+      <value>firdes.WIN_BLACKMAN</value>
+    </param>
+  </block>
+  <block>
+    <key>low_pass_filter</key>
+    <param>
+      <key>beta</key>
+      <value>6.76</value>
+    </param>
+    <param>
+      <key>alias</key>
+      <value></value>
+    </param>
+    <param>
+      <key>comment</key>
+      <value></value>
+    </param>
+    <param>
+      <key>affinity</key>
+      <value></value>
+    </param>
+    <param>
+      <key>cutoff_freq</key>
+      <value>20e3</value>
+    </param>
+    <param>
+      <key>decim</key>
+      <value>dec_rate_2</value>
+    </param>
+    <param>
+      <key>_enabled</key>
+      <value>1</value>
+    </param>
+    <param>
+      <key>type</key>
+      <value>fir_filter_ccf</value>
+    </param>
+    <param>
+      <key>_coordinate</key>
+      <value>(416, 412)</value>
+    </param>
+    <param>
+      <key>_rotation</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>gain</key>
+      <value>1.97</value>
+    </param>
+    <param>
+      <key>id</key>
+      <value>low_pass_filter_2_0</value>
+    </param>
+    <param>
+      <key>interp</key>
+      <value>1</value>
+    </param>
+    <param>
+      <key>maxoutbuf</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>minoutbuf</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>samp_rate</key>
+      <value>samp_rate/dec_rate_1</value>
     </param>
     <param>
       <key>width</key>
@@ -2050,7 +2049,7 @@ def set_ptt(ptt, set_ptt_allowed):
     </param>
     <param>
       <key>fc</key>
-      <value>RF_frequency</value>
+      <value>RF_frequency-1e3</value>
     </param>
     <param>
       <key>comment</key>
@@ -2613,11 +2612,11 @@ def set_ptt(ptt, set_ptt_allowed):
     </param>
     <param>
       <key>ymax</key>
-      <value>spectrum_max-13</value>
+      <value>spectrum_max-9</value>
     </param>
     <param>
       <key>ymin</key>
-      <value>spectrum_min-13</value>
+      <value>spectrum_min-9</value>
     </param>
     <param>
       <key>units</key>
@@ -3916,7 +3915,7 @@ def set_ptt(ptt, set_ptt_allowed):
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(760, 468)</value>
+      <value>(752, 460)</value>
     </param>
     <param>
       <key>gui_hint</key>
@@ -3936,11 +3935,11 @@ def set_ptt(ptt, set_ptt_allowed):
     </param>
     <param>
       <key>int_max</key>
-      <value>spectrum_max-13</value>
+      <value>spectrum_max-10</value>
     </param>
     <param>
       <key>int_min</key>
-      <value>spectrum_min-13</value>
+      <value>spectrum_min-10</value>
     </param>
     <param>
       <key>legend</key>
@@ -4190,7 +4189,7 @@ def set_ptt(ptt, set_ptt_allowed):
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(760, 364)</value>
+      <value>(616, 364)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -4206,7 +4205,7 @@ def set_ptt(ptt, set_ptt_allowed):
     </param>
     <param>
       <key>maxoutbuf</key>
-      <value>4096</value>
+      <value>0</value>
     </param>
     <param>
       <key>minoutbuf</key>
@@ -4294,7 +4293,7 @@ def set_ptt(ptt, set_ptt_allowed):
   </connection>
   <connection>
     <source_block_id>band_pass_filter_0_0</source_block_id>
-    <sink_block_id>rational_resampler_xxx_1</sink_block_id>
+    <sink_block_id>blocks_complex_to_real_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>
@@ -4366,13 +4365,19 @@ def set_ptt(ptt, set_ptt_allowed):
   </connection>
   <connection>
     <source_block_id>low_pass_filter_2</source_block_id>
-    <sink_block_id>band_pass_filter_0_0</sink_block_id>
+    <sink_block_id>low_pass_filter_2_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>
   <connection>
-    <source_block_id>low_pass_filter_2</source_block_id>
+    <source_block_id>low_pass_filter_2_0</source_block_id>
     <sink_block_id>low_pass_filter_1</sink_block_id>
+    <source_key>0</source_key>
+    <sink_key>0</sink_key>
+  </connection>
+  <connection>
+    <source_block_id>low_pass_filter_2_0</source_block_id>
+    <sink_block_id>rational_resampler_xxx_1</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>
@@ -4384,7 +4389,7 @@ def set_ptt(ptt, set_ptt_allowed):
   </connection>
   <connection>
     <source_block_id>rational_resampler_xxx_1</source_block_id>
-    <sink_block_id>blocks_complex_to_real_0</sink_block_id>
+    <sink_block_id>band_pass_filter_0_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>
