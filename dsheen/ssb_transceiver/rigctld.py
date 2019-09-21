@@ -1,5 +1,6 @@
 import logging
 import SocketServer
+import math
 import time
 from rci import client
 import hamlib_constants
@@ -74,16 +75,19 @@ class RigctlHandler(SocketServer.StreamRequestHandler):
                 self.wfile.write("0\n") # announces
                 self.wfile.write("10 20 30 40 50 60 70 0 \n") # Preamp gains list
                 self.wfile.write("0 \n") # Attenuator losses list
+                get_levels = RIG_LEVEL_PREAMP|RIG_LEVEL_AF|RIG_LEVEL_MICGAIN
+                if self.server.has_level_strength():
+                    get_levels |= RIG_LEVEL_STRENGTH
                 for value in (
                         RIG_FUNC_NONE, # has_get_func
                         RIG_FUNC_NONE, # has_set_func
-                        RIG_LEVEL_PREAMP|RIG_LEVEL_AF|RIG_LEVEL_MICGAIN, # has_get_level
+                        get_levels, # has_get_level
                         RIG_LEVEL_PREAMP|RIG_LEVEL_AF|RIG_LEVEL_MICGAIN, # has_set_level
                         RIG_PARM_NONE, # has_get_parm
                         RIG_PARM_NONE, # has_set_parm
                         ):
                     self.wfile.write("0x%x\n" % value)
-                # TODO: Support RIG_LEVEL_RF (float 0-1), RIG_LEVEL_STRENGTH (int dB relative S9)
+                # TODO: Support RIG_LEVEL_RF (float 0-1)
                 rprt = 0
             elif cmd in ("1", "dump_caps"):
                 self.wfile.write("""Model name: ShinySDR
@@ -198,6 +202,15 @@ class RigctlServer(SocketServer.ThreadingTCPServer):
 
     def set_level_micgain(self, gain):
         self.signal.set_mic_gain.emit(gain * 10)
+
+    def has_level_strength(self):
+        return hasattr(self.tb, 'audio_mag_sqrd')
+
+    def get_level_strength(self):
+        if not self.has_level_strength():
+            return 0
+        # RIG_LEVEL_STRENGTH is relative to S9 or -79 dBm
+        return int(10 * math.log10(self.tb.audio_mag_sqrd.level())) + 73
     
     def __init__(self, tb, signal):
         self.tb = tb
