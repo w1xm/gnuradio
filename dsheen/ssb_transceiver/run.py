@@ -15,7 +15,7 @@ class Signal(QtCore.QObject):
     set_mic_gain = QtCore.pyqtSignal(float)
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO, format="%(asctime)-15s %(levelname)s %(message)s")
+    logging.basicConfig(level=logging.WARNING, format="%(asctime)-15s %(levelname)s %(message)s")
     if gr.enable_realtime_scheduling() != gr.RT_OK:
         print "Error: failed to enable real-time scheduling."
 
@@ -24,16 +24,18 @@ if __name__ == '__main__':
         style = gr.prefs().get_string('qtgui', 'style', 'raster')
         Qt.QApplication.setGraphicsSystem(style)
     qapp = Qt.QApplication(sys.argv)
+    if "-v" in sys.argv:
+        logging.getLogger().setLevel(logging.INFO)
 
     tb = top_block.top_block()
     tb.start()
     tb.show()
     signal = Signal()
-    signal.set_RF_frequency.connect(tb.set_RF_frequency)
-    signal.set_ptt_command.connect(tb.set_ptt_command)
-    signal.set_rx_gain.connect(tb.set_rx_gain)
-    signal.set_volume.connect(tb.set_volume)
-    signal.set_mic_gain.connect(tb.set_mic_gain)
+    signal.set_RF_frequency.connect(tb.set_RF_frequency, type=QtCore.Qt.BlockingQueuedConnection)
+    signal.set_ptt_command.connect(tb.set_ptt_command, type=QtCore.Qt.BlockingQueuedConnection)
+    signal.set_rx_gain.connect(tb.set_rx_gain, type=QtCore.Qt.BlockingQueuedConnection)
+    signal.set_volume.connect(tb.set_volume, type=QtCore.Qt.BlockingQueuedConnection)
+    signal.set_mic_gain.connect(tb.set_mic_gain, type=QtCore.Qt.BlockingQueuedConnection)
     s = rigctld.RigctlServer(tb, signal)
     t = threading.Thread(target=s.serve_forever)
     t.daemon = True
