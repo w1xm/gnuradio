@@ -209,8 +209,10 @@ class RigctlServer(SocketServer.ThreadingTCPServer):
     def get_level_strength(self):
         if not self.has_level_strength():
             return 0
-        # RIG_LEVEL_STRENGTH is relative to S9 or -79 dBm
-        return int(10 * math.log10(self.tb.audio_mag_sqrd.level())) + 73
+        # RIG_LEVEL_STRENGTH is relative to S9 or -79 dBm (S0 = -127 dBm)
+        # Our noise floor is at -110 dB/Hz which shows up as -75 dB in audio_mag_sqrd.level()
+        # Absent a real calibration, we'll just set -75 dBFS to S0.
+        return int(10 * math.log10(self.tb.audio_mag_sqrd.level())) + 27
     
     def __init__(self, tb, signal):
         self.tb = tb
