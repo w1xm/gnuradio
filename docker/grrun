@@ -43,5 +43,6 @@ exec docker run \
      -e PULSE_SERVER=unix:/pulse/socket -e PULSE_COOKIE=/pulse/cookie -v $PULSE_SOCKET:/pulse/socket -v $HOME/.config/pulse/cookie:/pulse/cookie \
      -v $HOME:$HOME \
      -v /srv/wsjtx:/root/.local/share/WSJT-X \
+     -w "$PWD" \
      -e RCI_ADDRESS -e RCI_PASSWORD \
      --privileged --net=host --ipc=host -i $TTY ${EXTRA:-} "$TAG" "$@"
