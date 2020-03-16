@@ -9,6 +9,7 @@ import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
 import argparse
+import os
 import time
 import survey_autoranging
 
@@ -39,8 +40,8 @@ def park():
 from flowgraph import flowgraph
 
 class top_block(flowgraph):
-    def __init__(self):
-        super(top_block, self).__init__()
+    def __init__(self, **kwargs):
+        super(top_block, self).__init__(**kwargs)
         self.darksky = None
 
     def set_recording_enabled(self, enabled):
@@ -56,8 +57,8 @@ class top_block(flowgraph):
         self.set_recording_enabled(True) #start copying
         while vec[0]==pointa and vec[-1]==pointb:
             time.sleep(1)
-            vec=tb.get_variable_function_probe()
-        tb.set_recording_enabled(False) #stop copying
+            vec=self.get_variable_function_probe()
+        self.set_recording_enabled(False) #stop copying
         return np.array(vec)
 
     def dark_sky_calib(self, int_time): #for use when pointing at the dark sky
@@ -100,15 +101,23 @@ def main(top_block_cls=top_block, options=None):
     parser = argparse.ArgumentParser(description='Galactic sky scan')
     parser.add_argument('output_dir', metavar='DIRECTORY',
                         help='output directory to write scan results')
-    parser.add_argument('--int-time', type=int,
+    parser.add_argument('--int-time', type=int, default=30,
                         help='integration time')
     args = parser.parse_args()
-    
-    tb = top_block_cls()
+
+    try:
+        os.mkdir(args.output_dir)
+    except OSError:
+        pass
+
+    tb = top_block_cls(file_sink_path=os.path.join(args.output_dir, 'receive_block_sink'))
     tb.start()
     print('Receiving ...')
 
+    band=0
+    client.set_band_rx(band, True)
     survey_autoranging.run_survey(tb, point, savefolder=args.output_dir, int_time=args.int_time)
+    client.set_band_rx(band, False)
 
     tb.stop()
     tb.wait()

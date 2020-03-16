@@ -13,14 +13,14 @@ import time
 
 #convert frequency f to radial velocity at galactic coordinate l
 #account for movement of the sun relative to galactic center
-def freq_to_vel(f,l):
+def freq_to_vel(center_freq, f,l):
     c=2.998e5 #km/s
-    v_rec=(freq-f)*c/freq
+    v_rec=(center_freq-f)*c/center_freq
     v_sun=220 #km/s
     correction=v_sun*np.sin(np.deg2rad(l))
     return v_rec+correction
 
-def run_survey(tb, point, savefolder, savetitle='vectors.txt', int_time=30, l_start=0, l_stop=360, l_step=2.5)
+def run_survey(tb, point, savefolder, savetitle='vectors.txt', int_time=30, l_start=0, l_stop=360, l_step=2.5):
     gain=60
     tb.set_sdr_gain(gain)
     freq=tb.get_sdr_frequency()/1000000 #MHz
@@ -54,7 +54,7 @@ def run_survey(tb, point, savefolder, savetitle='vectors.txt', int_time=30, l_st
         #take data at a position
         pos=gal_to_altaz(l,0)
         if pos[1] > 0:
-            print 'Moving to galactic longitude l=' + str(l)
+            print('Moving to galactic longitude l=' + str(l))
             point(pos[0],pos[1])
             if large_step:
                 time.sleep(10)
@@ -62,19 +62,19 @@ def run_survey(tb, point, savefolder, savetitle='vectors.txt', int_time=30, l_st
                 time.sleep(2)
             large_step=0
 
-            print "Observing at galactic coordinates ("+str(l)+', 0).'
-            time=get_time()
-            data=observe(int_time) 
+            print("Observing at galactic coordinates ("+str(l)+', 0).')
+            apytime=get_time()
+            data=tb.observe(int_time) 
 
             #write to file
             file.write(str(l)+' ')
             file.write(str(0)+' ')
-            file.write(str(time)+' ')
+            file.write(str(apytime)+' ')
             file.write(str(data)+'\n \n')
 
             #frequency binned figure
             plt.figure()
-            plt.title('l='+str(l)+ ' '+ str(time))
+            plt.title('l='+str(l)+ ' '+ str(apytime))
             plt.xlabel('Frequency (MHz)')
             plt.ylabel('Power at Feed (W/Hz)')
             plt.axvline(x=freq, color='black', ls='--')
@@ -85,11 +85,11 @@ def run_survey(tb, point, savefolder, savetitle='vectors.txt', int_time=30, l_st
             plt.close()
 
             #velocity binned figure
-            vel_range=np.array([freq_to_vel(f,l) for f in freq_range])
-            center_vel=freq_to_vel(freq,l)
+            vel_range=np.array([freq_to_vel(freq, f,l) for f in freq_range])
+            center_vel=freq_to_vel(freq, freq,l)
 
             plt.figure()
-            plt.title('l='+str(l)+ ' '+ str(time))
+            plt.title('l='+str(l)+ ' '+ str(apytime))
             plt.xlabel('Velocity (km/s)')
             plt.ylabel('Power at Feed (W)')
             plt.axvline(x=0, color='black', ls='--')
