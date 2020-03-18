@@ -15,6 +15,8 @@ class RigctlHandler(SocketServer.StreamRequestHandler):
                 continue
             send_rprt = True
             # Two forms of command: single character, or "+\" followed by command name.
+            # For single-character commands, the command must either generate output or a RPRT line.
+            # For +\ extended commands, the command should always output an RPRT line.
             if len(cmd) > 1 and cmd[0] == "\\":
                 parts = cmd.split(" ")
                 cmd = parts[0][1:]
