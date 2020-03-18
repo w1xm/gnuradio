@@ -20,7 +20,7 @@ def freq_to_vel(center_freq, f,l):
     correction=v_sun*np.sin(np.deg2rad(l))
     return v_rec+correction
 
-def run_survey(tb, point, savefolder, savetitle='vectors.txt', l_start=0, l_stop=360, l_step=2.5):
+def run_survey(tb, point, savefolder, savetitle='vectors.txt', int_time=30, l_start=0, l_stop=360, l_step=2.5):
     gain=60
     tb.set_sdr_gain(gain)
     freq=tb.get_sdr_frequency()/1000000 #MHz
@@ -48,7 +48,7 @@ def run_survey(tb, point, savefolder, savetitle='vectors.txt', l_start=0, l_stop
 
     #do the survey
     file=open(os.path.join(savefolder, savetitle), 'w')
-    file.write('Integration time '+str(tb.get_integration_time())+' seconds. Center frequency '+str(freq)+' MHz. \n \n')
+    file.write('Integration time '+str(int_time)+' seconds. Center frequency '+str(freq)+' MHz. \n \n')
     file.write('Azimuth Elevation RA DEC Time Center Data_vector \n \n')
     while l<=l_stop:
         #take data at a position
@@ -64,7 +64,7 @@ def run_survey(tb, point, savefolder, savetitle='vectors.txt', l_start=0, l_stop
 
             print("Observing at galactic coordinates ("+str(l)+', 0).')
             apytime=get_time()
-            data=tb.observe()
+            data=tb.observe(int_time)
 
             #write to file
             file.write(str(l)+' ')

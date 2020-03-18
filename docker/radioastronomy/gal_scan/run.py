@@ -48,24 +48,22 @@ class top_block(flowgraph):
         # TODO: Rename block to something more meaningful.
         self.blocks_copy_0.set_enabled(enabled)
 
-    def snapshot(self): #straight snapshot over a certain integration time.
-        int_time = self.get_integration_time()
+    def snapshot(self, int_time): #straight snapshot over a certain integration time.
         print('Snapshot %d sec' % (int_time,))
-        vec=self.get_variable_function_probe() #old vector
-        pointa=vec[0]
-        pointb=vec[-1]
+        self.integration_block.integrate(int_time)
         self.set_recording_enabled(True) #start copying
-        while vec[0]==pointa and vec[-1]==pointb:
+        vec = None
+        while vec is None:
             time.sleep(1)
-            vec=self.get_variable_function_probe()
+            vec = self.integration_block.integrate_results()
         self.set_recording_enabled(False) #stop copying
         return np.array(vec)
 
-    def dark_sky_calib(self): #for use when pointing at the dark sky
-        self.darksky = self.snapshot()
+    def dark_sky_calib(self, int_time): #for use when pointing at the dark sky
+        self.darksky = self.snapshot(int_time)
 
-    def observe(self): #dark sky calbrated snapshot
-        vec=self.snapshot()
+    def observe(self, int_time): #dark sky calbrated snapshot
+        vec=self.snapshot(int_time)
         # TODO: Why did the original code wait for int_time here?
         if self.darksky:
             return vec-self.darksky
@@ -86,7 +84,7 @@ def graphing(tb, int_time, iter=float('inf')):
     i=0
     while(i<iter):
         plt.pause(int_time)
-        y=tb.observe()
+        y=tb.observe(int_time)
         plt.clf()
         plt.xlabel('Frequency (MHz)')
         plt.ylabel('Scaled power')
@@ -103,6 +101,8 @@ def main(top_block_cls=top_block, options=None):
                         help='output directory to write scan results')
     parser.add_argument('--int-time', type=int, default=30,
                         help='integration time')
+    parser.add_argument('--long-step', type=float, default=2.5,
+                        help='longitude step size')
     args = parser.parse_args()
 
     try:
@@ -112,14 +112,13 @@ def main(top_block_cls=top_block, options=None):
 
     tb = top_block_cls(
         file_sink_path=os.path.join(args.output_dir, 'receive_block_sink'),
-        integration_time=args.int_time,
     )
     tb.start()
     print('Receiving ...')
 
     band=0
     client.set_band_rx(band, True)
-    survey_autoranging.run_survey(tb, point, savefolder=args.output_dir)
+    survey_autoranging.run_survey(tb, point, savefolder=args.output_dir, int_time=args.int_time, l_step=args.long_step)
     client.set_band_rx(band, False)
 
     tb.stop()
