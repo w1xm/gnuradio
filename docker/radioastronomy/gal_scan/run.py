@@ -103,6 +103,10 @@ def main(top_block_cls=top_block, options=None):
                         help='integration time')
     parser.add_argument('--long-step', type=float, default=2.5,
                         help='longitude step size')
+    parser.add_argument('--long-start', type=float, default=0,
+                        help='starting longitude')
+    parser.add_argument('--long-stop', type=float, default=360,
+                        help='ending longitude')
     args = parser.parse_args()
 
     try:
@@ -118,7 +122,7 @@ def main(top_block_cls=top_block, options=None):
 
     band=0
     client.set_band_rx(band, True)
-    survey_autoranging.run_survey(tb, point, savefolder=args.output_dir, int_time=args.int_time, l_step=args.long_step)
+    survey_autoranging.run_survey(tb, point, savefolder=args.output_dir, int_time=args.int_time, l_start=args.long_start, l_stop=args.long_stop, l_step=args.long_step)
     client.set_band_rx(band, False)
 
     tb.stop()
