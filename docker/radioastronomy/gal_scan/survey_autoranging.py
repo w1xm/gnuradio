@@ -7,6 +7,7 @@ import numpy as np
 import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
+import matplotlib.colors as colors
 from galcoord import get_time
 import os.path
 import time
@@ -152,7 +153,9 @@ def run_survey(tb, point, savefolder, int_time=30, l_start=0, l_stop=360, l_step
     plt.ylabel('Velocity (km/s)')
     plt.xlabel('Galactic Longitude')
     plt.ticklabel_format(useOffset=False)
-    plt.pcolormesh(contour_longs, contour_vels, contour_data, vmin=0.8e-16, vmax=3e-16)
+    pcm = plt.pcolormesh(contour_longs, contour_vels, contour_data, vmin=0.8e-16, vmax=2e-16, shading='gouraud', norm=colors.PowerNorm(0.6))
+    cbar = plt.colorbar(pcm, extend='max')
+    cbar.ax.set_ylabel('Power at feed (W/Hz)', rotation=-90, va="bottom")
     plt.savefig(os.path.join(savefolder, '2d_mesh.pdf'))
     #time.sleep(1)
     plt.close()
