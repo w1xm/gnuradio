@@ -95,7 +95,8 @@ def run_survey(tb, savefolder, iterator, gain=60, int_time=30):
     csvwriter = csv.writer(open(os.path.join(savefolder, 'vectors.csv'), 'w'))
     file.write('Integration time '+str(int_time)+' seconds. Center frequency '+str(freq)+' MHz. \n \n')
     csvwriter.writerow(['# Integration time: %d seconds Center frequency: %f MHz' % (int_time, freq)])
-    csvwriter.writerow(['time'] + list(iterator.fields) + [str(f) for f in freq_range]*2)
+    freq_count = 2 if 'pos' in iterator.fields else 1
+    csvwriter.writerow(['time'] + list(iterator.fields) + [str(f) for f in freq_range]*freq_count)
     file.write(' '.join(iterator.fields) + ' Time Center Data_vector \n \n')
 
     contour_iter_axes = {field: [] for field in iterator.axes}
@@ -125,6 +126,7 @@ def run_survey(tb, savefolder, iterator, gain=60, int_time=30):
 
         contour_freqs.append(freq_range)
 
+        vel_range = None
         if hasattr(pos, 'longitude'):
             vel_range=np.array([freq_to_vel(freq, f,pos.longitude) for f in freq_range])
             contour_vels.append(vel_range)
@@ -132,7 +134,11 @@ def run_survey(tb, savefolder, iterator, gain=60, int_time=30):
         contour_data.append(data)
 
         apytime.format = 'fits'
-        csvwriter.writerow([str(apytime)] + [str(x) for x in pos] + [str(f) for f in vel_range] + [str(f) for f in data])
+        row = [str(apytime)] + [str(x) for x in pos]
+        if vel_range is not None:
+            row += [str(f) for f in vel_range]
+        row += [str(f) for f in data]
+        csvwriter.writerow(row)
 
         #frequency binned figure
         plt.figure()
@@ -195,7 +201,7 @@ def run_survey(tb, savefolder, iterator, gain=60, int_time=30):
         plt.xlabel(xlabel)
         plt.ylabel(ylabel)
         plt.ticklabel_format(useOffset=False)
-        pcm = plt.pcolormesh(contour_iter_axes[xaxis], ydata, contour_data, vmin=0.8e-16, vmax=2e-16, shading='gouraud', norm=colors.PowerNorm(0.6))
+        pcm = plt.pcolormesh(contour_iter_axes[xaxis], ydata, contour_data, vmin=0.8e-16, vmax=np.percentile(contour_data, 90), shading='gouraud', norm=colors.LogNorm())
         cbar = plt.colorbar(pcm, extend='max')
         cbar.ax.set_ylabel('Power at feed (W/Hz)', rotation=-90, va="bottom")
         plt.savefig(os.path.join(savefolder, '2d_'+xaxis+'_mesh.pdf'))
