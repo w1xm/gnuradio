@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import argparse
 import os
 import time
+from enum import Enum
 import survey_autoranging
 
 ##################################################
@@ -23,25 +24,13 @@ import survey_autoranging
 az_offset=5.5
 el_offset=-5.5
 import rci.client
-client = rci.client.Client()
-client.set_offsets(az_offset, el_offset)
-
-def point(az,el): #point the dish
-    client.set_azimuth_position(az)
-    client.set_elevation_position(el)
-    print('Moving to position ' + str(az)+' , '+str(el)+'.')
-    return
-
-def park():
-    point(250,50)
-    print("Parking")
-    return
 
 from flowgraph import flowgraph
 
 class top_block(flowgraph):
-    def __init__(self, **kwargs):
+    def __init__(self, client, **kwargs):
         super(top_block, self).__init__(**kwargs)
+        self.client = client
         self.darksky = None
 
     def set_recording_enabled(self, enabled):
@@ -70,7 +59,16 @@ class top_block(flowgraph):
         else:
             print('Warning: No dark sky calibration has been performed.')
             return vec
-        
+
+    def point(self, az,el): #point the dish
+        self.client.set_azimuth_position(az)
+        self.client.set_elevation_position(el)
+        print('Moving to position ' + str(az)+' , '+str(el)+'.')
+
+    def park(self):
+        self.point(250,50)
+        print("Parking")
+
 
 #axis extremes
 flo=1420.4-0.75
@@ -94,6 +92,12 @@ def graphing(tb, int_time, iter=float('inf')):
         plt.draw()
         i+=1
 
+class Mode(Enum):
+    gal = 'gal'
+    az = 'az'
+
+    def __str__(self):
+        return self.value
 
 def main(top_block_cls=top_block, options=None):
     parser = argparse.ArgumentParser(description='Galactic sky scan')
@@ -101,20 +105,34 @@ def main(top_block_cls=top_block, options=None):
                         help='output directory to write scan results')
     parser.add_argument('--int-time', type=int, default=30,
                         help='integration time')
-    parser.add_argument('--long-step', type=float, default=2.5,
-                        help='longitude step size')
-    parser.add_argument('--long-start', type=float, default=0,
-                        help='starting longitude')
-    parser.add_argument('--long-stop', type=float, default=360,
-                        help='ending longitude')
+    parser.add_argument('--gain', type=int, default=60,
+                        help='SDR gain')
+    parser.add_argument('--mode', type=Mode, choices=list(Mode), default=Mode.gal)
+    parser.add_argument('--step', type=float, default=2.5,
+                        help='position step size')
+    parser.add_argument('--start', type=float, default=0,
+                        help='starting position')
+    parser.add_argument('--stop', type=float, default=360,
+                        help='ending position')
     args = parser.parse_args()
+
+    iterator_cls = {
+        Mode.gal: survey_autoranging.longitude_iterator,
+        Mode.az: survey_autoranging.azimuth_iterator,
+        }[args.mode]
+
+    iterator = iterator_cls(args.start, args.stop, args.step)
 
     try:
         os.mkdir(args.output_dir)
     except OSError:
         pass
 
+    client = rci.client.Client(client_name='gal_scan')
+    client.set_offsets(az_offset, el_offset)
+
     tb = top_block_cls(
+        client=client,
         file_sink_path=os.path.join(args.output_dir, 'receive_block_sink'),
     )
     tb.start()
@@ -122,7 +140,7 @@ def main(top_block_cls=top_block, options=None):
 
     band=0
     client.set_band_rx(band, True)
-    survey_autoranging.run_survey(tb, point, savefolder=args.output_dir, int_time=args.int_time, l_start=args.long_start, l_stop=args.long_stop, l_step=args.long_step)
+    survey_autoranging.run_survey(tb, savefolder=args.output_dir, gain=args.gain, int_time=args.int_time, iterator=iterator)
     client.set_band_rx(band, False)
 
     tb.stop()
