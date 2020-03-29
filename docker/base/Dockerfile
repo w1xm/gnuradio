@@ -1,4 +1,4 @@
-FROM pybombs/pybombs-commondeps:2.3.3
+FROM pybombs/pybombs-commondeps:2.3.3 AS base
 MAINTAINER w1xm-officers@mit.edu
 
 # Update package lists
@@ -10,17 +10,16 @@ ARG makewidth=2
 RUN pybombs config makewidth $makewidth
 
 RUN DEBIAN_FRONTEND=noninteractive apt-get full-upgrade -y
-RUN pybombs install apache-thrift
+RUN pybombs -v install apache-thrift && rm -rf /pybombs/src/
 # Needed by uhd
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y python3-mako python3-requests python3-numpy python3-setuptools
-RUN pybombs install uhd
-RUN pybombs -v install gnuradio
-RUN pybombs install limesuite
-RUN pybombs install gr-limesdr
-RUN pybombs install gqrx
+RUN pybombs install uhd && rm -rf /pybombs/src/
+RUN pybombs -v install gnuradio && rm -rf /pybombs/src/
+RUN pybombs install limesuite && rm -rf /pybombs/src/
+RUN pybombs install gr-limesdr && rm -rf /pybombs/src/
 
 COPY recipes/ /recipes/
-RUN pybombs -r /recipes/ install gr-linrad
+RUN pybombs -r /recipes/ install gr-linrad && rm -rf /pybombs/src/
 
 RUN pybombs config makewidth 2
 
@@ -35,6 +34,11 @@ RUN sed -Ei '/^xterm_executable\s*=/c xterm_executable = /usr/bin/xterm' /pybomb
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y alsa-utils pulseaudio-utils libasound2-plugins
 RUN sed -Ei '/enable-shm/c enable-shm = no' /etc/pulse/client.conf
 
+RUN echo 'source /pybombs/setup_env.sh && "$@"' > /run.sh
+ENTRYPOINT ["/bin/bash", "/run.sh"]
+
+FROM base AS gui
+
 # Install sublime text
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y wget
 RUN wget -qO - https://download.sublimetext.com/sublimehq-pub.gpg | apt-key add -
@@ -42,8 +46,6 @@ RUN echo "deb https://download.sublimetext.com/ apt/stable/" > /etc/apt/sources.
 RUN DEBIAN_FRONTEND=noninteractive apt-get update -q
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y sublime-text
 
-# Configure gqrx
+# Install and configure gqrx
+RUN pybombs -v install --print-tree gqrx && rm -rf /pybombs/src/
 COPY gqrx.conf /root/.config/gqrx/default.conf
-
-RUN echo 'source /pybombs/setup_env.sh && "$@"' > /run.sh
-ENTRYPOINT ["/bin/bash", "/run.sh"]
