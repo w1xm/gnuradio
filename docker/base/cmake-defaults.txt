@@ -1,0 +1,1 @@
+set(PYTHON_EXECUTABLE /usr/bin/python2 CACHE FILEPATH "path to python")
