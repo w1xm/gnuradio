@@ -11,7 +11,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -y python-astroplan
 
 COPY flowgraph.grc /src/
 WORKDIR /flowgraph/
-RUN . /pybombs/setup_env.sh && grcc -d /flowgraph /src/flowgraph.grc
+RUN . /pybombs/setup_env.sh && grcc -o /flowgraph /src/flowgraph.grc
 COPY *.py /flowgraph/
 
 CMD /flowgraph/run.py
