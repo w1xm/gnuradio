@@ -26,7 +26,7 @@ RUN ln -fs /usr/share/zoneinfo/America/New_York /etc/localtime
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata
 
 # Install dependencies of gnuradio
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -y swig3.0 libqt5opengl5-dev libqt5svg5-dev qt5-default pyqt5-dev pyqt5-dev-tools python-pyqt5 python-click-plugins python-pyqtgraph liborc-0.4-dev libgmp-dev libgmp3-dev python-yaml python-gi-dev python-gi-cairo python-gobject-2-dev gobject-introspection gir1.2-gtk-3.0
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y swig3.0 libqt5opengl5-dev libqt5svg5-dev qt5-default pyqt5-dev pyqt5-dev-tools python-pyqt5 python-click-plugins python-pyqtgraph liborc-0.4-dev libgmp-dev libgmp3-dev python-yaml python-gi-dev python-gi-cairo python-gobject-2-dev gobject-introspection gir1.2-gtk-3.0 libqwt-qt5-dev
 
 # Force the use of Python 2
 COPY cmake-defaults.txt /pybombs/.pybombs/cmake-defaults.txt
