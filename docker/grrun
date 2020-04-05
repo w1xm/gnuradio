@@ -6,9 +6,9 @@
 # --ipc=host gives access to SHM so waterfalls work
 # --net=host gives access to the X11 socket as well as allows binding servers
 # -it runs interactively with a tty so the stdin/stdout work
-# w1xm/base is the name of the container to run in
+# w1xm/gui is the name of the container to run in
 
-TAG=w1xm/base
+TAG=w1xm/gui
 
 TEMP=$(getopt -o +t: --long tag:,extra-args: -n grrun -- "$@")
 
