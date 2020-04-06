@@ -1,0 +1,18 @@
+category: baseline
+depends:
+- tornado
+- numpy
+- pyyaml
+- dateutil
+- python-requests
+description: Python plotting library
+inherit: distutils
+satisfy:
+  deb: python-bokeh >= 0.12.6
+  rpm: bokeh || python-bokeh
+  python: bokeh >= 0.12.6
+  pip: bokeh >= 0.12.6
+source: git+https://github.com/bokeh/bokeh.git
+gitbranch: 1.4.0
+make: python setup.py build_ext --library-dirs=$prefix/lib:$prefix/lib64 --install-js
+install: python setup.py install --prefix=$prefix --install-js
