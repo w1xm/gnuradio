@@ -53,10 +53,13 @@ RUN pybombs -v install --print-tree gr-osmosdr && rm -rf /pybombs/src/
 COPY recipes/ /pybombs/.pybombs/recipes/
 
 # Use GR 3.8 gr-bokehgui
-RUN pybombs config -P gr-bokehgui source git+https://github.com/w1xm/gr-bokehgui
+RUN pybombs config -P gr-bokehgui source git+https://github.com/w1xm/gr-bokehgui && pybombs config -P gr-bokehgui gitbranch range_slider
 RUN sed -i 's/pip: dateutil/deb: python-dateutil/' ~/.pybombs/recipes/gr-recipes/dateutil.lwr && sed -i 's/pip: tornado/deb: python-tornado/' ~/.pybombs/recipes/gr-recipes/tornado.lwr
 RUN pip2 install bokeh
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -y python-dateutil python3-dateutil
+RUN wget -qO - https://deb.nodesource.com/gpgkey/nodesource.gpg.key | apt-key add -
+RUN echo "deb https://deb.nodesource.com/node_10.x bionic main" > /etc/apt/sources.list.d/nodesource.list
+RUN DEBIAN_FRONTEND=noninteractive apt-get update -q
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y python-dateutil python3-dateutil net-tools nodejs
 RUN pybombs -v install --print-tree gr-bokehgui && rm -rf /pybombs/src/
 
 # TODO: Uncomment when gr-linrad supports 3.8
