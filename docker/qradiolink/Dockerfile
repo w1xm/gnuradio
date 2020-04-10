@@ -21,15 +21,19 @@ CMD /work/qradiolink/build/qradiolink
 # Build grumble
 FROM golang:1.14 as grumble-builder
 
+RUN mkdir -p /go/src/mumble.info/grumble/
+RUN git clone https://github.com/w1xm/grumble /go/src/mumble.info/grumble
+
 RUN go get -v -t mumble.info/grumble/cmd/grumble
 
 FROM qradiolink AS headless
 
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -y tigervnc-standalone-server fluxbox netcat
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y tigervnc-standalone-server fluxbox netcat novnc
 
 COPY --from=grumble-builder /go/bin/grumble /usr/bin/grumble
 COPY headless* /
 COPY fluxbox-apps /root/.fluxbox/apps
+COPY index.html /usr/share/novnc
 
 ENV DATADIR /data
 

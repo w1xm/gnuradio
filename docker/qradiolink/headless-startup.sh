@@ -2,6 +2,10 @@
 
 fluxbox &
 
+desktop=${DISPLAY%.0}
+
+/usr/share/novnc/utils/launch.sh --vnc localhost:$(( 5900 + ${desktop#:} )) &
+
 (
     # TODO: Wait for grumble and qradiolink to come up before sending commands
     sleep 10;
