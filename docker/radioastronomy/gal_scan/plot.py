@@ -5,6 +5,7 @@ __metaclass__ = type
 
 import glob
 import numpy as np
+from numpy.polynomial.polynomial import polyfit, polyval
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
@@ -45,7 +46,7 @@ def find_shift(axis_data, ydata, contour_data):
         prefix = axis_data[gap_index:]
         suffix = axis_data[:gap_index]
         if diffs[0] > 0:
-            prefix -= 360
+            prefix = prefix - 360
         axis_data = np.concatenate((prefix, suffix))
         ydata = np.roll(ydata, -gap_index, 0)
         contour_data = np.roll(contour_data, -gap_index, 0)
@@ -59,28 +60,58 @@ def plot_2d(contour_freqs, contour_vels, contour_data, contour_iter_axes, savefo
         ydata = contour_vels
         ylabel = 'Velocity (km/s)'
 
-    for xaxis in contour_iter_axes:
-        axis_data = contour_iter_axes[xaxis]
-        shifted_xdata, shifted_ydata, shifted_contour_data = find_shift(axis_data, ydata, contour_data)
-        plt.figure()
-        plt.xlabel(AXIS_NAMES[xaxis])
-        plt.ylabel(ylabel)
-        plt.ticklabel_format(useOffset=False)
-        plt.contourf(shifted_xdata, shifted_ydata, shifted_contour_data, 100, vmin=0.8e-16, vmax=3e-16)
-        if savefolder:
-            plt.savefig(os.path.join(savefolder, '2d_'+xaxis+'_contour.pdf'))
-            plt.close()
+    for suffix in ('', '_normalized'):
+        for xaxis in contour_iter_axes:
+            axis_data = contour_iter_axes[xaxis]
+            shifted_xdata, shifted_ydata, shifted_contour_data = find_shift(axis_data, ydata, contour_data)
 
+            if suffix:
+                shifted_contour_data = correct_contour_data(shifted_contour_data)
+
+            vmin = 0.8e-16
+            vmin = max(vmin, np.percentile(contour_data[:, CORRECTION_POLY_POINTS], 50))
+            vmax = np.percentile(contour_data, 95)
+
+            plt.figure()
+            plt.xlabel(AXIS_NAMES[xaxis])
+            plt.ylabel(ylabel)
+            plt.ticklabel_format(useOffset=False)
+            plt.contourf(shifted_xdata, shifted_ydata, shifted_contour_data, 100, vmin=vmin, vmax=vmax)
+            if savefolder:
+                plt.savefig(os.path.join(savefolder, '2d_'+xaxis+'_contour'+suffix+'.pdf'))
+                plt.close()
+
+            plt.figure()
+            plt.xlabel(AXIS_NAMES[xaxis])
+            plt.ylabel(ylabel)
+            plt.ticklabel_format(useOffset=False)
+            pcm = plt.pcolormesh(shifted_xdata, shifted_ydata, shifted_contour_data, vmin=vmin, vmax=vmax, shading='gouraud', norm=colors.LogNorm())
+            cbar = plt.colorbar(pcm, extend='max')
+            cbar.ax.set_ylabel('Power at feed (W/Hz)', rotation=-90, va="bottom")
+            if False: # show polynomial lines
+                plt.plot(shifted_xdata[:,CORRECTION_POLY_POINTS], shifted_ydata[:,CORRECTION_POLY_POINTS])
+            if savefolder:
+                plt.savefig(os.path.join(savefolder, '2d_'+xaxis+'_mesh'+suffix+'.pdf'))
+                plt.close()
+
+CORRECTION_POLY_POINTS = np.array([75,100,125,150,175])# dsheen had 200,225,250 but those are within real data
+
+def correct_contour_data(contour_data):
+    # dsheen@'s polynomial fit algorithm
+
+    points = CORRECTION_POLY_POINTS
+
+    coefficients = polyfit(points, np.transpose(contour_data[:, points]), 1)
+
+    correction_matrix = polyval(np.arange(contour_data.shape[1]), coefficients)
+
+    if False: # visualize correction matrix
         plt.figure()
-        plt.xlabel(AXIS_NAMES[xaxis])
-        plt.ylabel(ylabel)
-        plt.ticklabel_format(useOffset=False)
-        pcm = plt.pcolormesh(shifted_xdata, shifted_ydata, shifted_contour_data, vmin=0.8e-16, vmax=np.percentile(contour_data, 90), shading='gouraud', norm=colors.LogNorm())
+        pcm = plt.pcolormesh(correction_matrix)
         cbar = plt.colorbar(pcm, extend='max')
-        cbar.ax.set_ylabel('Power at feed (W/Hz)', rotation=-90, va="bottom")
-        if savefolder:
-            plt.savefig(os.path.join(savefolder, '2d_'+xaxis+'_mesh.pdf'))
-            plt.close()
+        plt.show()
+
+    return contour_data - correction_matrix + np.median(coefficients[0])
 
 def main():
     # Invoke plot.py to replot an existing dataset
