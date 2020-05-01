@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import glob
 import numpy as np
 import matplotlib as mpl
@@ -33,7 +35,7 @@ def plot_2d(contour_freqs, contour_vels, contour_data, contour_iter_axes, savefo
     # TODO: Plot both
     ydata = contour_freqs
     ylabel = 'Frequency (MHz)'
-    if contour_vels:
+    if contour_vels is not None:
         ydata = contour_vels
         ylabel = 'Velocity (km/s)'
 
@@ -61,7 +63,7 @@ def plot_2d(contour_freqs, contour_vels, contour_data, contour_iter_axes, savefo
 def main():
     # Invoke plot.py to replot an existing dataset
     contour_iter_axes = {}
-    for f in glob.glob("contour_*.np"):
+    for f in glob.glob("contour_*.npy"):
         key = f.split('_', 1)[1].rsplit('.', 1)[0]
         contour_iter_axes[key] = np.load(f)
 
