@@ -27,9 +27,9 @@ import rci.client
 
 from flowgraph import flowgraph
 
-class top_block(flowgraph):
+class radiotelescope(flowgraph):
     def __init__(self, client, **kwargs):
-        super(top_block, self).__init__(**kwargs)
+        super(radiotelescope, self).__init__(**kwargs)
         self.client = client
         self.darksky = None
 
@@ -95,11 +95,12 @@ def graphing(tb, int_time, iter=float('inf')):
 class Mode(Enum):
     gal = 'gal'
     az = 'az'
+    grid = 'grid'
 
     def __str__(self):
         return self.value
 
-def main(top_block_cls=top_block, options=None):
+def main(top_block_cls=radiotelescope, options=None):
     parser = argparse.ArgumentParser(description='Galactic sky scan')
     parser.add_argument('output_dir', metavar='DIRECTORY',
                         help='output directory to write scan results')
@@ -114,14 +115,19 @@ def main(top_block_cls=top_block, options=None):
                         help='starting position')
     parser.add_argument('--stop', type=float, default=360,
                         help='ending position')
+    parser.add_argument('--lat', type=float,
+                        help='galactic latitude to scan (for grid mode)')
+    parser.add_argument('--lon', type=float,
+                        help='galactic longitude to scan (for grid mode)')
     args = parser.parse_args()
 
     iterator_cls = {
         Mode.gal: survey_autoranging.longitude_iterator,
         Mode.az: survey_autoranging.azimuth_iterator,
+        Mode.grid: survey_autoranging.grid_iterator,
         }[args.mode]
 
-    iterator = iterator_cls(args.start, args.stop, args.step)
+    iterator = iterator_cls(**vars(args))
 
     try:
         os.mkdir(args.output_dir)

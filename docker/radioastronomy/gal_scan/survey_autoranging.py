@@ -24,22 +24,21 @@ def freq_to_vel(center_freq, f,l):
     return v_rec+correction
 
 class iterator(object):
-    def __init__(self, start, stop, step):
+    def __init__(self, start, stop, step, **kwargs):
         self.start = start
         self.stop = stop
         self.step = step
-        self.pos = start
+        self.iter = iter(np.arange(start, stop+step, step))
 
     def __iter__(self):
         return self
 
     def __next__(self):
-        while self.pos <= self.stop:
-            translated = self.translate(self.pos)
-            self.pos += self.step
+        while True:
+            pos = next(self.iter)
+            translated = self.translate(pos)
             if translated:
                 return translated
-        raise StopIteration
     next = __next__
 
 LongitudePos = namedtuple('LongitudePos', 'azimuth elevation longitude latitude'.split())
@@ -75,6 +74,28 @@ class azimuth_iterator(iterator):
 
     def format_title(self, pos):
         return 'az=%.1f' % (pos.azimuth,)
+
+class grid_iterator(iterator):
+    axes = {'azimuth': 'Azimuth', 'elevation': 'Elevation', 'latitude': 'Galactic Latitude', 'longitude': 'Galactic Longitude'}
+    fields = LongitudePos._fields
+
+    def __init__(self, start, stop, step, lat, lon, **kwargs):
+        self.lat = lat
+        self.lon = lon
+        self.coords = [(lat + x, lon + y) for x in range(start, stop, step) for y in range(start, stop, step)]
+        self.iter = iter(coords)
+
+    def translate(self, (lat, lon)):
+        az, el = gal_to_altaz(lon, lat)
+        if el > 0:
+            return LongitudePos(az, el, lon, lat)
+        return None
+
+    def format_filename(self, pos):
+        return 'latlon_%05.1f_%05.1f' % (pos.latitude, pos.longitude)
+
+    def format_title(self, pos):
+        return 'l=%.1f b=%.1f az=%.1f el=%.1f' % (pos.longitude, pos.latitude, pos.azimuth, pos.elevation)
 
 def run_survey(tb, savefolder, iterator, gain=60, int_time=30):
     tb.set_sdr_gain(gain)
