@@ -4,15 +4,12 @@ __metaclass__ = type
 
 from galcoord import gal_to_altaz
 import numpy as np
-import matplotlib as mpl
-mpl.use('Agg')
-import matplotlib.pyplot as plt
-import matplotlib.colors as colors
 from galcoord import get_time
 import os.path
 import time
 import csv
 from collections import namedtuple
+import plotx
 
 #convert frequency f to radial velocity at galactic coordinate l
 #account for movement of the sun relative to galactic center
@@ -161,30 +158,14 @@ def run_survey(tb, savefolder, iterator, gain=60, int_time=30):
         row += [str(f) for f in data]
         csvwriter.writerow(row)
 
-        #frequency binned figure
-        plt.figure()
-        plt.title(iterator.format_title(pos)+ ' '+ str(apytime))
-        plt.xlabel('Frequency (MHz)')
-        plt.ylabel('Power at Feed (W/Hz)')
-        plt.axvline(x=freq, color='black', ls='--')
-        plt.ticklabel_format(useOffset=False)
-        plt.plot(freq_range, data)
-        plt.savefig(os.path.join(savefolder, iterator.format_filename(pos)+'_freq.pdf'))
-        plt.close()
+        plot.plot_freq(freq_range, data, iterator.format_title(pos) + ' ' + str(apytime))
+        plot.plt.savefig(os.path.join(savefolder, iterator.format_filename(pos)+'_freq.pdf'))
+        plot.plt.close()
 
         if hasattr(pos, 'longitude'):
-            #velocity binned figure
-            center_vel=freq_to_vel(freq, freq, pos.longitude)
-
-            plt.figure()
-            plt.title(iterator.format_title(pos) + ' '+ str(apytime))
-            plt.xlabel('Velocity (km/s)')
-            plt.ylabel('Power at Feed (W)')
-            plt.axvline(x=0, color='black', ls='--')
-            plt.ticklabel_format(useOffset=False)
-            plt.plot(vel_range, data)
-            plt.savefig(os.path.join(savefolder, iterator.format_filename(pos)+'_vel.pdf'))
-            plt.close()
+            plot.plot_velocity(iterator.format_title(pos) + ' '+ str(apytime))
+            plot.plt.savefig(os.path.join(savefolder, iterator.format_filename(pos)+'_vel.pdf'))
+            plot.plt.close()
 
         print('Data logged.')
         print()
@@ -199,31 +180,8 @@ def run_survey(tb, savefolder, iterator, gain=60, int_time=30):
         np.save(os.path.join(savefolder, 'contour_'+field+'.npy'), data)
     np.save(os.path.join(savefolder, 'contour_data.npy'), contour_data)
     np.save(os.path.join(savefolder, 'contour_freqs.npy'), contour_freqs)
-
-    # TODO: Plot both
-    ydata = contour_freqs
-    ylabel = 'Frequency (MHz)'
     if contour_vels:
         contour_vels = np.array(contour_vels)
         np.save(os.path.join(savefolder, 'contour_vels.npy'), contour_vels)
-        ydata = contour_vels
-        ylabel = 'Velocity (km/s)'
 
-    for xaxis, xlabel in iterator.axes.items():
-        plt.figure()
-        plt.xlabel(xlabel)
-        plt.ylabel(ylabel)
-        plt.ticklabel_format(useOffset=False)
-        plt.contourf(contour_iter_axes[xaxis], ydata, contour_data, 100, vmin=0.8e-16, vmax=3e-16)
-        plt.savefig(os.path.join(savefolder, '2d_'+xaxis+'_contour.pdf'))
-        plt.close()
-
-        plt.figure()
-        plt.xlabel(xlabel)
-        plt.ylabel(ylabel)
-        plt.ticklabel_format(useOffset=False)
-        pcm = plt.pcolormesh(contour_iter_axes[xaxis], ydata, contour_data, vmin=0.8e-16, vmax=np.percentile(contour_data, 90), shading='gouraud', norm=colors.LogNorm())
-        cbar = plt.colorbar(pcm, extend='max')
-        cbar.ax.set_ylabel('Power at feed (W/Hz)', rotation=-90, va="bottom")
-        plt.savefig(os.path.join(savefolder, '2d_'+xaxis+'_mesh.pdf'))
-        plt.close()
+    plot.plot_2d(contour_freqs, contour_vels, contour_data, contour_iter_axes, savepath)
