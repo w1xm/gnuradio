@@ -2,6 +2,8 @@
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
+import matplotlib as mpl
+mpl.use('Agg')
 from galcoord import gal_to_altaz
 import numpy as np
 from galcoord import get_time
