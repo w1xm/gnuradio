@@ -7,6 +7,9 @@ import glob
 import numpy as np
 from numpy.polynomial.polynomial import polyfit, polyval
 import matplotlib as mpl
+import sys
+if 'matplotlib.backends' not in sys.modules:
+    mpl.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 import os.path
@@ -128,7 +131,11 @@ def main():
 
     print("Plotting axes:", contour_iter_axes.keys())
 
-    plot_2d(contour_freqs, contour_vels, contour_data, contour_iter_axes)
+    savefolder = None
+    if mpl.get_backend().lower() == 'agg':
+        savefolder = '.'
+
+    plot_2d(contour_freqs, contour_vels, contour_data, contour_iter_axes, savefolder=savefolder)
 
 if __name__ == '__main__':
     main()
