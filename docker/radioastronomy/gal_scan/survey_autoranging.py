@@ -11,7 +11,7 @@ import os.path
 import time
 import csv
 from collections import namedtuple
-import plotx
+import plot
 
 #convert frequency f to radial velocity at galactic coordinate l
 #account for movement of the sun relative to galactic center
@@ -160,12 +160,12 @@ def run_survey(tb, savefolder, iterator, gain=60, int_time=30):
         row += [str(f) for f in data]
         csvwriter.writerow(row)
 
-        plot.plot_freq(freq_range, data, iterator.format_title(pos) + ' ' + str(apytime))
+        plot.plot_freq(freq, freq_range, data, iterator.format_title(pos) + ' ' + str(apytime))
         plot.plt.savefig(os.path.join(savefolder, iterator.format_filename(pos)+'_freq.pdf'))
         plot.plt.close()
 
         if hasattr(pos, 'longitude'):
-            plot.plot_velocity(iterator.format_title(pos) + ' '+ str(apytime))
+            plot.plot_velocity(vel_range, data, iterator.format_title(pos) + ' '+ str(apytime))
             plot.plt.savefig(os.path.join(savefolder, iterator.format_filename(pos)+'_vel.pdf'))
             plot.plt.close()
 
@@ -186,4 +186,4 @@ def run_survey(tb, savefolder, iterator, gain=60, int_time=30):
         contour_vels = np.array(contour_vels)
         np.save(os.path.join(savefolder, 'contour_vels.npy'), contour_vels)
 
-    plot.plot_2d(contour_freqs, contour_vels, contour_data, contour_iter_axes, savepath)
+    plot.plot_2d(contour_freqs, contour_vels, contour_data, contour_iter_axes, savefolder)

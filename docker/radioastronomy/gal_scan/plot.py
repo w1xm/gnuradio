@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 import os.path
 
-def plot_freq(freq_range, data, title):
+def plot_freq(freq, freq_range, data, title):
     #frequency binned figure
     plt.figure()
     plt.title(title)
