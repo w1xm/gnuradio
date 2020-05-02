@@ -82,6 +82,12 @@ def find_shift(axis_data, ydata, contour_data):
         contour_data = np.roll(contour_data, -gap_index, 0)
     return axis_data, ydata, contour_data
 
+def add_colorbar(mappable, normalized):
+    """Add a colorbar to the plot for mappable."""
+    cbar = plt.colorbar(mappable, extend='max')
+    cbar_ylabel = 'Estimated signal power' if normalized else 'Power'
+    cbar.ax.set_ylabel(cbar_ylabel+' at feed (W/Hz)', rotation=-90, va="bottom")
+
 def plot_2d(contour_freqs, contour_vels, contour_data, contour_iter_axes, savefolder=None, show_polynomial_lines=False):
     """2D plot of (position, frequency, brightness).
 
@@ -125,8 +131,14 @@ def plot_2d(contour_freqs, contour_vels, contour_data, contour_iter_axes, savefo
             plt.xlabel(AXIS_NAMES[xaxis])
             plt.ylabel(ylabel)
             plt.ticklabel_format(useOffset=False)
-            plt.contourf(shifted_xdata, shifted_ydata, shifted_contour_data, 100,
-                         vmin=vmin, vmax=vmax)
+            cntr = plt.contourf(shifted_xdata, shifted_ydata,
+                                np.clip(
+                                    shifted_contour_data,
+                                    vmin, vmax),
+                                100,
+                                extend='both',
+                                vmin=vmin, vmax=vmax)
+            add_colorbar(cntr, normalized)
             if savefolder:
                 plt.savefig(os.path.join(savefolder, '2d_'+xaxis+'_contour'+suffix+'.pdf'))
                 plt.close()
@@ -142,9 +154,7 @@ def plot_2d(contour_freqs, contour_vels, contour_data, contour_iter_axes, savefo
                                  vmin=vmin, vmax=vmax,
                                  shading='gouraud',
                                  norm=norm)
-            cbar = plt.colorbar(pcm, extend='max')
-            ylabel = 'Estimated signal power' if normalized else 'Power'
-            cbar.ax.set_ylabel(ylabel+' at feed (W/Hz)', rotation=-90, va="bottom")
+            add_colorbar(pcm, normalized)
             if show_polynomial_lines:
                 plt.plot(shifted_xdata[:, CORRECTION_POLY_POINTS],
                          shifted_ydata[:, CORRECTION_POLY_POINTS])
