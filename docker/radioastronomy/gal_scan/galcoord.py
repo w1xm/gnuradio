@@ -36,23 +36,24 @@ galactic_frame=Galactic()
 #convert frequencies fs to radial velocity in km/s at galactic coordinate l
 #account for movement of the earth relative to the sun and the sun relative to galactic center
 def freqs_to_vel(center_freq, fs, lcoord,bcoord):
+    # Convert from earth reference frame to solar reference frame using
+    # https://docs.astropy.org/en/stable/coordinates/velocities.html#radial-velocity-corrections
+    # Then convert from solar reference frame to Galactic Standard of Rest using
+    # https://docs.astropy.org/en/stable/generated/examples/coordinates/rv-to-gsr.html
     pos_gal = SkyCoord(l=lcoord*u.degree, b=bcoord*u.degree, frame='galactic')
     v_to_bary = pos_gal.radial_velocity_correction(kind='barycentric', obstime=get_time(), location=radome_observer.location)
+    # Calculate the sun's velocity projected in the observing direction.
+    v_sun = Galactocentric().galcen_v_sun.to_cartesian()
+    cart_data = pos_gal.data.to_cartesian()
+    unit_vector = cart_data / cart_data.norm()
+    v_proj = v_sun.dot(unit_vector)
+
     def freq_to_vel(f):
         f = f * u.MHz
         v_local = f.to(u.km/u.s, u.doppler_radio(center_freq*u.MHz))
         v_bary = v_local + v_to_bary + v_local * v_to_bary / c
-        # v_bary is now barycentric; we need to remove the solar system motion as well
-        pos_gal.radial_velocity = v_bary
-        v_sun = Galactocentric().galcen_v_sun.to_cartesian()
-
-        gal = pos_gal.transform_to(Galactic)
-        cart_data = gal.data.to_cartesian()
-        unit_vector = cart_data / cart_data.norm()
-
-        v_proj = v_sun.dot(unit_vector)
-
-        return (pos_gal.radial_velocity + v_proj) / (u.km/u.s)
+        # v_bary is now barycentric; now we need to remove the solar system motion as well
+        return (v_bary + v_proj) / (u.km/u.s)
     return [freq_to_vel(f) for f in fs]
 
 def update_altaz():
