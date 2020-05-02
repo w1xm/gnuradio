@@ -90,7 +90,7 @@ class grid_iterator(iterator):
 
 def run_survey(tb, savefolder, iterator, gain=60, int_time=30):
     tb.set_sdr_gain(gain)
-    freq=tb.get_sdr_frequency()/1000000 #MHzx
+    freq=tb.get_sdr_frequency()/1000000 #MHz
     freq_offset=tb.get_output_vector_bandwidth()/2000000. #MHz
     flo= freq-freq_offset
     fhi= freq+freq_offset
@@ -100,7 +100,6 @@ def run_survey(tb, savefolder, iterator, gain=60, int_time=30):
     #########################################
     # BEGIN COMMANDS #
     #########################################
-    large_step=1 #signals that the dish just moved a bunch and we need to wait longer for it to settle
 
     #do the survey
     file=open(os.path.join(savefolder, 'vectors.txt'), 'w')
@@ -118,11 +117,6 @@ def run_survey(tb, savefolder, iterator, gain=60, int_time=30):
 
     for pos in iterator:
         tb.point(pos.azimuth, pos.elevation)
-        if large_step:
-            time.sleep(10)
-        else:
-            time.sleep(2)
-        large_step=0
 
         print("Observing at coordinates "+str(pos)+'.')
         apytime=get_time()

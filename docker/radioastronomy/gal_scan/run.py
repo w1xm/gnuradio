@@ -14,6 +14,8 @@ import time
 from enum import Enum
 import survey_autoranging
 
+VELOCITY_QUIESCENT = 0.2 # degrees/second
+
 ##################################################
 ##################################################
 ##################################################
@@ -60,10 +62,25 @@ class radiotelescope(flowgraph):
             print('Warning: No dark sky calibration has been performed.')
             return vec
 
-    def point(self, az,el): #point the dish
-        self.client.set_azimuth_position(az)
-        self.client.set_elevation_position(el)
+    def point(self, az,el):
+        """Point the dish at a particular azimuth and elevation.
+
+        Blocks until the dish has stopped moving.
+        """
+
         print('Moving to position ' + str(az)+' , '+str(el)+'.')
+        while True:
+            self.client.set_azimuth_position(az)
+            self.client.set_elevation_position(el)
+            time.sleep(1)
+            status = self.client.status
+            if status.get("ShutdownError") == 11:
+                # Ignore elevation overvelocity
+                print('Elevation overvelocity shutdown. Resetting.')
+                self.client.i_know_what_i_am_doing_unsafe_exit_shutdown()
+            elif status.get("CommandAzFlags") == 'POSITION' and status.get("CommandElFlags") == 'POSITION' and abs(self.client.azimuth_velocity) < VELOCITY_QUIESCENT and abs(self.client.elevation_velocity) < VELOCITY_QUIESCENT:
+                return
+            print('Still moving, current position (%g, %g).' % (self.client.azimuth_position, self.client.elevation_position))
 
     def park(self):
         self.point(250,50)
