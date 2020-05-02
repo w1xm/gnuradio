@@ -4,7 +4,7 @@ __metaclass__ = type
 
 import matplotlib as mpl
 mpl.use('Agg')
-from galcoord import freq_to_vel
+from galcoord import freqs_to_vel
 from galcoord import gal_to_altaz
 import numpy as np
 from galcoord import get_time
@@ -140,7 +140,7 @@ def run_survey(tb, savefolder, iterator, gain=60, int_time=30):
 
         vel_range = None
         if hasattr(pos, 'longitude'):
-            vel_range=np.array([freq_to_vel(freq, f,pos.longitude,pos.latitude) for f in freq_range])
+            vel_range=np.array(freqs_to_vel(freq, freq_range, pos.longitude,pos.latitude))
             contour_vels.append(vel_range)
 
         contour_data.append(data)
