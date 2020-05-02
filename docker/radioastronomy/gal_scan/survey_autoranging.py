@@ -73,7 +73,7 @@ class grid_iterator(iterator):
     def __init__(self, start, stop, step, lat, lon, **kwargs):
         self.lat = lat
         self.lon = lon
-        self.coords = [(lat + x, lon + y) for x in np.arange(start, stop, step) for y in np.arange(start, stop, step)]
+        self.coords = [(lat + x, lon + y) for x in np.arange(start, stop+step, step) for y in np.arange(start, stop+step, step)]
         self.iter = iter(self.coords)
 
     def translate(self, (lat, lon)):
