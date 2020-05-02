@@ -4,6 +4,7 @@ __metaclass__ = type
 
 import matplotlib as mpl
 mpl.use('Agg')
+from galcoord import freq_to_vel
 from galcoord import gal_to_altaz
 import numpy as np
 from galcoord import get_time
@@ -12,15 +13,6 @@ import time
 import csv
 from collections import namedtuple
 import plot
-
-#convert frequency f to radial velocity at galactic coordinate l
-#account for movement of the sun relative to galactic center
-def freq_to_vel(center_freq, f,l):
-    c=2.998e5 #km/s
-    v_rec=(center_freq-f)*c/center_freq
-    v_sun=220 #km/s
-    correction=v_sun*np.sin(np.deg2rad(l))
-    return v_rec+correction
 
 class iterator(object):
     def __init__(self, start, stop, step, **kwargs):
@@ -148,7 +140,7 @@ def run_survey(tb, savefolder, iterator, gain=60, int_time=30):
 
         vel_range = None
         if hasattr(pos, 'longitude'):
-            vel_range=np.array([freq_to_vel(freq, f,pos.longitude) for f in freq_range])
+            vel_range=np.array([freq_to_vel(freq, f,pos.longitude,pos.latitude) for f in freq_range])
             contour_vels.append(vel_range)
 
         contour_data.append(data)

@@ -10,6 +10,7 @@ from astropy.coordinates import ICRS
 from astropy.coordinates import GCRS
 from astropy.coordinates import Galactic
 from astropy import units as u
+from astropy.constants import c
 from astropy.time import Time
 from astroplan import Observer
 #from astroplan import FixedTarget
@@ -31,7 +32,25 @@ galactic_frame=Galactic()
 
 #print radome_observer.sun_altaz(time)
 
+#convert frequency f to radial velocity at galactic coordinate l
+#account for movement of the earth relative to the sun and the sun relative to galactic center
+def freq_to_vel(center_freq, f, lcoord,bcoord):
+    pos_gal = SkyCoord(l=lcoord*u.degree, b=bcoord*u.degree, frame='galactic')
+    v_to_bary = pos_gal.radial_velocity_correction(kind='barycentric', obstime=get_time(), location=radome_observer.location)
+    f = f * u.MHz
+    v_local = f.to(u.km/u.s, u.doppler_radio(center_freq*u.MHz))
+    v_bary = v_local + v_to_bary + v_local * v_to_bary / c
+    # v_bary is now barycentric; we need to remove the solar system motion as well
+    pos_gal.radial_velocity = v_bary
+    v_sun = coord.Galactocentric().galcen_v_sun.to_cartesian()
 
+    gal = pos_gal.transform_to(coord.Galactic)
+    cart_data = gal.data.to_cartesian()
+    unit_vector = cart_data / cart_data.norm()
+
+    v_proj = v_sun.dot(unit_vector)
+
+    return pos_gal.radial_velocity + v_proj
 
 def update_altaz():
     time=Time.now()
