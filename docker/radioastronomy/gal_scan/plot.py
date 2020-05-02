@@ -34,7 +34,7 @@ def plot_velocity(vel_range, data, title):
     plt.ticklabel_format(useOffset=False)
     plt.plot(vel_range, data)
 
-AXIS_NAMES = {'azimuth': 'Azimuth', 'longitude': 'Galactic Longitude'}
+AXIS_NAMES = {'azimuth': 'Azimuth', 'elevation': 'Elevation', 'longitude': 'Galactic Longitude', 'latitude': 'Galactic Latitude'}
 
 def find_shift(axis_data, ydata, contour_data):
     # If there is a discontinuity in the axis (e.g. missed scan data
