@@ -1,5 +1,14 @@
 #!/usr/bin/env python
 # Prepare for Python 3
+
+############################################################################
+#
+# Program to generate plots of data from dish scans.
+# called at runtime during a normal scan, can be rerun fron the directory 
+# containing numpy data files from a past scan to replot them
+#
+############################################################################
+
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
@@ -14,7 +23,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 import os.path
 
-def plot_freq(freq, freq_range, data, title):
+def plot_freq(freq_range, data, title):
     #frequency binned figure
     plt.figure()
     plt.title(title)
@@ -34,7 +43,7 @@ def plot_velocity(vel_range, data, title):
     plt.ticklabel_format(useOffset=False)
     plt.plot(vel_range, data)
 
-AXIS_NAMES = {'azimuth': 'Azimuth', 'elevation': 'Elevation', 'longitude': 'Galactic Longitude', 'latitude': 'Galactic Latitude'}
+AXIS_NAMES = {'azimuth': 'Azimuth', 'longitude': 'Galactic Longitude'}
 
 def find_shift(axis_data, ydata, contour_data):
     # If there is a discontinuity in the axis (e.g. missed scan data
@@ -71,36 +80,65 @@ def plot_2d(contour_freqs, contour_vels, contour_data, contour_iter_axes, savefo
             if suffix:
                 shifted_contour_data = correct_contour_data(shifted_contour_data)
 
-            vmin = 0.8e-16
+            vmin = 0 #don't bother plotting featurs that baseline subtraction place below zero
             vmin = max(vmin, np.percentile(shifted_contour_data[:, CORRECTION_POLY_POINTS], 50))
             vmax = np.percentile(shifted_contour_data, 95)
 
-            plt.figure()
-            plt.xlabel(AXIS_NAMES[xaxis])
-            plt.ylabel(ylabel)
-            plt.ticklabel_format(useOffset=False)
-            plt.contourf(shifted_xdata, shifted_ydata, shifted_contour_data, 100, vmin=vmin, vmax=vmax)
-            if savefolder:
-                plt.savefig(os.path.join(savefolder, '2d_'+xaxis+'_contour'+suffix+'.pdf'))
-                plt.close()
+            #contour plots currently don't work well, don't bother genenating for now (also not really valid to plot contours in frequency/velocity vs position)
+
+            # plt.figure()
+            # plt.xlabel(AXIS_NAMES[xaxis])
+            # plt.ylabel(ylabel)
+            # plt.ticklabel_format(useOffset=False)
+            # plt.contourf(shifted_xdata, shifted_ydata, shifted_contour_data, 100, vmin=vmin, vmax=vmax)
+            # if savefolder:
+            #     plt.savefig(os.path.join(savefolder, '2d_'+xaxis+'_contour'+suffix+'.pdf'))
+            #     plt.close()
+
+            #plot unsmoothed version of data
 
             plt.figure()
             plt.xlabel(AXIS_NAMES[xaxis])
             plt.ylabel(ylabel)
             plt.ticklabel_format(useOffset=False)
-            pcm = plt.pcolormesh(shifted_xdata, shifted_ydata, shifted_contour_data, vmin=vmin, vmax=vmax, shading='gouraud', norm=colors.LogNorm())
+            pcm = plt.pcolormesh(shifted_xdata, shifted_ydata, shifted_contour_data, vmin=vmin, vmax=vmax) #abandon smoothing to preserve clear resolution limit, plot on liear scale #shading='gouraud')#,norm=colors.LogNorm())
             cbar = plt.colorbar(pcm, extend='max')
-            cbar.ax.set_ylabel('Power at feed (W/Hz)', rotation=-90, va="bottom")
+            cbar.ax.set_ylabel('Estimated signal power at feed (W/Hz)', rotation=-90, va="bottom")
             if False: # show polynomial lines
                 plt.plot(shifted_xdata[:,CORRECTION_POLY_POINTS], shifted_ydata[:,CORRECTION_POLY_POINTS])
             if savefolder:
                 plt.savefig(os.path.join(savefolder, '2d_'+xaxis+'_mesh'+suffix+'.pdf'))
                 plt.close()
 
-CORRECTION_POLY_POINTS = np.array([75,100,125,150,175])# dsheen had 200,225,250 but those are within real data
+            #plot smoothed version of data
+            
+            plt.figure()
+            plt.xlabel(AXIS_NAMES[xaxis])
+            plt.ylabel(ylabel)
+            plt.ticklabel_format(useOffset=False)
+            pcm = plt.pcolormesh(shifted_xdata, shifted_ydata, shifted_contour_data, vmin=vmin, vmax=vmax, shading='gouraud') #abandon smoothing to preserve clear resolution limit, plot on liear scale #shading='gouraud')#,norm=colors.LogNorm())
+            cbar = plt.colorbar(pcm, extend='max')
+            cbar.ax.set_ylabel('Estimated signal power at feed (W/Hz)', rotation=-90, va="bottom")
+            if False: # show polynomial lines
+                plt.plot(shifted_xdata[:,CORRECTION_POLY_POINTS], shifted_ydata[:,CORRECTION_POLY_POINTS])
+            if savefolder:
+                plt.savefig(os.path.join(savefolder, '2d_'+xaxis+'_mesh'+suffix+'_smoothed'+'.pdf'))
+                plt.close()
+
+
+#################################################################################
+#
+# Polynomial baseline approximation and subtraction to estimate real signal power
+# approximate noise floor as a first order polynomial using points outside of 
+# region containing data of interest and subtract from measured data
+#
+
+CORRECTION_POLY_POINTS = np.array([75,100,125,150,175]) #frequency indices used for polynomial fit
+#CORRECTION_MINIMUM_CHECK = np.array(range(75,425)) #range of points we care to make sure are above zero (eg, where we may see real data)
 
 def correct_contour_data(contour_data):
     # dsheen@'s polynomial fit algorithm
+
 
     points = CORRECTION_POLY_POINTS
 
@@ -114,7 +152,11 @@ def correct_contour_data(contour_data):
         cbar = plt.colorbar(pcm, extend='max')
         plt.show()
 
-    return contour_data - correction_matrix + np.median(coefficients[0])
+
+    return contour_data - correction_matrix #return corrected data with baseline removed
+
+    #corrected_data = contour_data - correction_matrix
+    #return corrected_data -np.min(corrected_data[:, CORRECTION_MINIMUM_CHECK]) #rescale to try to make sure things aren't below zero
 
 def main():
     # Invoke plot.py to replot an existing dataset
