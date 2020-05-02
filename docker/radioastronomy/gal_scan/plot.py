@@ -116,7 +116,7 @@ def plot_2d(contour_freqs, contour_vels, contour_data, contour_iter_axes, savefo
             plt.xlabel(AXIS_NAMES[xaxis])
             plt.ylabel(ylabel)
             plt.ticklabel_format(useOffset=False)
-            pcm = plt.pcolormesh(shifted_xdata, shifted_ydata, shifted_contour_data, vmin=vmin, vmax=vmax, shading='gouraud') #abandon smoothing to preserve clear resolution limit, plot on liear scale #shading='gouraud')#,norm=colors.LogNorm())
+            pcm = plt.pcolormesh(shifted_xdata, shifted_ydata, shifted_contour_data, vmin=vmin, vmax=vmax, shading='gouraud') #plot on liear scale #shading='gouraud')#,norm=colors.LogNorm())
             cbar = plt.colorbar(pcm, extend='max')
             cbar.ax.set_ylabel('Estimated signal power at feed (W/Hz)', rotation=-90, va="bottom")
             if False: # show polynomial lines
