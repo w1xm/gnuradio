@@ -12,6 +12,7 @@ README.md for further instructions.
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
+from contextlib import contextmanager
 import glob
 import sys
 import os.path
@@ -88,7 +89,7 @@ def add_colorbar(mappable, normalized):
     cbar_ylabel = 'Estimated signal power' if normalized else 'Power'
     cbar.ax.set_ylabel(cbar_ylabel+' at feed (W/Hz)', rotation=-90, va="bottom")
 
-def plot_2d(contour_freqs, contour_vels, contour_data, contour_iter_axes, savefolder=None, show_polynomial_lines=False):
+def plot_2d(contour_freqs, contour_vels, contour_data, contour_iter_axes, savefolder=None):
     """2D plot of (position, frequency, brightness).
 
     If velocity information is available, the Y-axis shows velocity
@@ -112,6 +113,17 @@ def plot_2d(contour_freqs, contour_vels, contour_data, contour_iter_axes, savefo
 
     for normalized in (False, True):
         for xaxis in contour_iter_axes:
+            @contextmanager
+            def figure(name):
+                fig = plt.figure()
+                plt.xlabel(AXIS_NAMES[xaxis])
+                plt.ylabel(ylabel)
+                plt.ticklabel_format(useOffset=False)
+                yield fig
+                if savefolder:
+                    plt.savefig(os.path.join(savefolder, '2d_'+xaxis+'_'+name+suffix+'.pdf'))
+                    plt.close()
+
             suffix = '_normalized' if normalized else ''
             shifted_xdata, shifted_ydata, shifted_contour_data = find_shift(
                 contour_iter_axes[xaxis], ydata, contour_data)
@@ -127,40 +139,67 @@ def plot_2d(contour_freqs, contour_vels, contour_data, contour_iter_axes, savefo
                 vmin = max(0.8e-16, vmin)
             vmax = np.percentile(shifted_contour_data, 95)
 
-            plt.figure()
-            plt.xlabel(AXIS_NAMES[xaxis])
-            plt.ylabel(ylabel)
-            plt.ticklabel_format(useOffset=False)
-            cntr = plt.contourf(shifted_xdata, shifted_ydata,
-                                np.clip(
-                                    shifted_contour_data,
-                                    vmin, vmax),
-                                100,
-                                extend='both',
-                                vmin=vmin, vmax=vmax)
-            add_colorbar(cntr, normalized)
-            if savefolder:
-                plt.savefig(os.path.join(savefolder, '2d_'+xaxis+'_contour'+suffix+'.pdf'))
-                plt.close()
+            with figure('contour'):
+                cntr = plt.contourf(shifted_xdata, shifted_ydata,
+                                    np.clip(
+                                        shifted_contour_data,
+                                        vmin, vmax),
+                                    100,
+                                    extend='both',
+                                    vmin=vmin, vmax=vmax)
+                add_colorbar(cntr, normalized)
 
-            plt.figure()
-            plt.xlabel(AXIS_NAMES[xaxis])
-            plt.ylabel(ylabel)
-            plt.ticklabel_format(useOffset=False)
             norm = None
             if not normalized:
                 norm = colors.LogNorm()
-            pcm = plt.pcolormesh(shifted_xdata, shifted_ydata, shifted_contour_data,
-                                 vmin=vmin, vmax=vmax,
-                                 shading='gouraud',
-                                 norm=norm)
-            add_colorbar(pcm, normalized)
-            if show_polynomial_lines:
-                plt.plot(shifted_xdata[:, CORRECTION_POLY_POINTS],
-                         shifted_ydata[:, CORRECTION_POLY_POINTS])
-            if savefolder:
-                plt.savefig(os.path.join(savefolder, '2d_'+xaxis+'_mesh'+suffix+'.pdf'))
-                plt.close()
+
+            with figure('mesh'):
+                # pcolormesh without shading treats x and y as the
+                # coordinates of the top left corner of the box.
+                # So we need to shift the points up and to the left one half step so that the boxes are centered on the correct position.
+                mesh_xdata = center_mesh_coords(shifted_xdata)
+                mesh_ydata = center_mesh_coords(shifted_ydata)
+                pcm = plt.pcolormesh(mesh_xdata, mesh_ydata, shifted_contour_data,
+                                     vmin=vmin, vmax=vmax,
+                                     norm=norm)
+                add_colorbar(pcm, normalized)
+
+            with figure('mesh_interpolated'):
+                pcm = plt.pcolormesh(shifted_xdata, shifted_ydata, shifted_contour_data,
+                                     vmin=vmin, vmax=vmax,
+                                     shading='gouraud',
+                                     norm=norm)
+                add_colorbar(pcm, normalized)
+
+def center_mesh_coords(data):
+    """Shift coordinates in data by one half step,
+    so that pcolormesh draws boxes in the right place."""
+    mesh_data = (data[:-1] + data[1:]) / 2
+    return np.concatenate((
+        [2*data[0] - mesh_data[0]],
+        mesh_data,
+        [2*data[-1] - mesh_data[-1]],
+    ))
+
+def plot_polynomial_lines(xdata, ydata):
+    """Plot lines showing where the polynomial fit was taken.
+
+    Currently unused."""
+    plt.plot(xdata[:, CORRECTION_POLY_POINTS],
+             ydata[:, CORRECTION_POLY_POINTS])
+
+def plot_sample_grid(xdata, ydata):
+    """Show sample positions as thin grid lines.
+
+    Currently unused.
+    """
+    ax = plt.gca()
+    # Vertical grid lines
+    segs1 = np.stack((xdata, ydata), axis=2)
+    ax.add_collection(mpl.collections.LineCollection(segs1, color='lightgrey', linewidths=0.1))
+    # Horizontal grid lines (too many lines if enabled)
+    #segs2 = segs1.transpose(1, 0, 2)
+    #ax.add_collection(mpl.collections.LineCollection(segs2))
 
 # Hand-tuned points that fall outside the region of interest.
 # These indices are used to estimate background noise level.
