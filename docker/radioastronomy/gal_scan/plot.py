@@ -72,8 +72,8 @@ def plot_2d(contour_freqs, contour_vels, contour_data, contour_iter_axes, savefo
                 shifted_contour_data = correct_contour_data(shifted_contour_data)
 
             vmin = 0.8e-16
-            vmin = max(vmin, np.percentile(contour_data[:, CORRECTION_POLY_POINTS], 50))
-            vmax = np.percentile(contour_data, 95)
+            vmin = max(vmin, np.percentile(shifted_contour_data[:, CORRECTION_POLY_POINTS], 50))
+            vmax = np.percentile(shifted_contour_data, 95)
 
             plt.figure()
             plt.xlabel(AXIS_NAMES[xaxis])
