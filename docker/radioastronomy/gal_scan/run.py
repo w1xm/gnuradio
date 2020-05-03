@@ -83,8 +83,8 @@ class radiotelescope(flowgraph):
             print('Still moving, current position (%g, %g).' % (self.client.azimuth_position, self.client.elevation_position))
 
     def park(self):
-        self.point(250,50)
         print("Parking")
+        self.point(250,50)
 
 
 #axis extremes
@@ -165,6 +165,7 @@ def main(top_block_cls=radiotelescope, options=None):
     client.set_band_rx(band, True)
     survey_autoranging.run_survey(tb, savefolder=args.output_dir, gain=args.gain, int_time=args.int_time, iterator=iterator)
     client.set_band_rx(band, False)
+    tb.park()
 
     tb.stop()
     tb.wait()
