@@ -64,9 +64,10 @@ def find_shift(axis_data, ydata, contour_data):
     """
     axis = axis_data[:, 0]
     diffs = np.diff(axis)
-    gap_index = diffs.argmax()
-    gap = diffs[gap_index]
-    if abs(gap) > 3*np.median(diffs):
+    adiffs = np.abs(diffs)
+    gap_index = adiffs.argmax()
+    gap = adiffs[gap_index]
+    if gap > 3*np.median(adiffs):
         # We found a gap > 3x the median gap. This probably means
         # there was a discontinuity in the plot when the scan wrapped
         # around the horizon.
