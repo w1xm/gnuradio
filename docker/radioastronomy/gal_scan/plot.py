@@ -130,6 +130,9 @@ def plot_2d(contour_freqs, contour_vels, contour_data, contour_iter_axes, savefo
 
     for normalized in (False, True):
         for xaxis in contour_iter_axes:
+            if len(np.unique(contour_iter_axes[xaxis])) == 1:
+                # 2D plots require multiple points
+                continue
             @contextmanager
             def figure(name):
                 fig = plt.figure()
