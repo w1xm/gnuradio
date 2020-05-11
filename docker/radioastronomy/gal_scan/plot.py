@@ -49,6 +49,8 @@ AXIS_NAMES = {
     'elevation': 'Elevation',
     'longitude': 'Galactic Longitude',
     'latitude': 'Galactic Latitude',
+    'rci_elevation': 'Actual Elevation',
+    'rci_azimuth': 'Actual Azimuth',
 }
 
 def find_shift(axis_data, ydata, contour_data):
@@ -136,7 +138,7 @@ def plot_2d(contour_freqs, contour_vels, contour_data, contour_iter_axes, savefo
             @contextmanager
             def figure(name):
                 fig = plt.figure()
-                plt.xlabel(AXIS_NAMES[xaxis])
+                plt.xlabel(AXIS_NAMES.get(xaxis,xaxis))
                 plt.ylabel(ylabel)
                 plt.ticklabel_format(useOffset=False)
                 yield fig

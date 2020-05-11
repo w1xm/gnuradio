@@ -5,9 +5,6 @@ from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
 import numpy as np
-import matplotlib as mpl
-mpl.use('Agg')
-import matplotlib.pyplot as plt
 import argparse
 import os
 import time
@@ -150,14 +147,15 @@ def main(top_block_cls=radiotelescope, options=None):
     tb.start()
     print('Receiving ...')
 
-    band=0
-    client.set_band_rx(band, True)
-    survey_autoranging.run_survey(tb, savefolder=args.output_dir, gain=args.gain, int_time=args.int_time, iterator=iterator)
-    client.set_band_rx(band, False)
-    tb.park()
-
-    tb.stop()
-    tb.wait()
+    try:
+        band=0
+        client.set_band_rx(band, True)
+        survey_autoranging.run_survey(tb, savefolder=args.output_dir, gain=args.gain, int_time=args.int_time, iterator=iterator, args=args)
+        client.set_band_rx(band, False)
+        tb.park()
+    finally:
+        tb.stop()
+        tb.wait()
 
 if __name__ == '__main__':
     main()
