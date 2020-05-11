@@ -47,17 +47,7 @@ class radiotelescope(flowgraph):
         self.set_recording_enabled(False) #stop copying
         return np.array(vec)
 
-    def dark_sky_calib(self, int_time): #for use when pointing at the dark sky
-        self.darksky = self.snapshot(int_time)
-
-    def observe(self, int_time): #dark sky calbrated snapshot
-        vec=self.snapshot(int_time)
-        # TODO: Why did the original code wait for int_time here?
-        if self.darksky:
-            return vec-self.darksky
-        else:
-            print('Warning: No dark sky calibration has been performed.')
-            return vec
+    observe = snapshot
 
     def point(self, az,el):
         """Point the dish at a particular azimuth and elevation.
@@ -119,6 +109,8 @@ def main(top_block_cls=radiotelescope, options=None):
                         help='named object to scan')
     parser.add_argument('--repeat', type=int, default=1,
                         help='number of times to repeat scan')
+    parser.add_argument('--darksky-offset', type=float, default=0,
+                        help='degree offset in azimuth to take darksky calibration at')
     args = parser.parse_args()
 
     iterator_cls = {
@@ -150,7 +142,7 @@ def main(top_block_cls=radiotelescope, options=None):
     try:
         band=0
         client.set_band_rx(band, True)
-        survey_autoranging.run_survey(tb, savefolder=args.output_dir, gain=args.gain, int_time=args.int_time, iterator=iterator, args=args)
+        survey_autoranging.run_survey(tb, savefolder=args.output_dir, gain=args.gain, int_time=args.int_time, darksky_offset=args.darksky_offset, iterator=iterator, args=args)
         client.set_band_rx(band, False)
         tb.park()
     finally:

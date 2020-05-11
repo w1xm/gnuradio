@@ -98,7 +98,7 @@ class grid_iterator(iterator):
 
 POSITION_FIELDS = ('time', 'azimuth', 'elevation', 'longitude', 'latitude', 'ra', 'dec', 'rci_azimuth', 'rci_elevation')
 
-def run_survey(tb, savefolder, iterator, args, gain=60, int_time=30):
+def run_survey(tb, savefolder, iterator, args, gain=60, int_time=30, darksky_offset=0):
     tb.set_sdr_gain(gain)
     freq=tb.get_sdr_frequency()/1000000 #MHz
     freq_offset=tb.get_output_vector_bandwidth()/2000000. #MHz
@@ -131,67 +131,77 @@ def run_survey(tb, savefolder, iterator, args, gain=60, int_time=30):
     contour_data = []
 
     for number, pos in enumerate(iterator):
-        apytime=get_time()
-        pos_altaz = pos.transform_to(altaz_frame(apytime))
-        if pos_altaz.alt < 0:
-            print("Can't observe at %s; target is below the horizon" % pos)
-            continue
-        tb.point(pos_altaz.az.degree, pos_altaz.alt.degree)
+        for darksky in (False, True):
+            if darksky and not darksky_offset:
+                continue
+            apytime=get_time()
+            pos_altaz = pos.transform_to(altaz_frame(apytime))
+            if darksky:
+                pos_altaz = SkyCoord(pos_altaz.az+darksky_offset*u.degree, pos_altaz.alt, frame=pos_altaz.frame)
+                pos = pos_altaz
+            if pos_altaz.alt < 0:
+                print("Can't observe at %s; target is below the horizon" % pos)
+                continue
+            tb.point(pos_altaz.az.degree, pos_altaz.alt.degree)
 
-        print("Observing at coordinates "+str(pos)+'.')
-        data=tb.observe(int_time)
+            print("Observing at coordinates "+str(pos)+'.')
+            data=tb.observe(int_time)
 
-        apytime.format = 'unix'
-        row = {
-            'mode': str(args.mode),
-            'number': number,
-            'data': data,
-            'freqs': freq_range,
-            'time': apytime.value,
-            'azimuth': pos_altaz.az.degree,
-            'elevation': pos_altaz.alt.degree,
-            'longitude': pos.galactic.l.degree,
-            'latitude': pos.galactic.b.degree,
-            'ra': pos.icrs.ra.degree,
-            'dec': pos.icrs.dec.degree,
-            'rci_azimuth': tb.client.azimuth_position,
-            'rci_elevation': tb.client.elevation_position,
-            'darksky': False,
-        }
+            apytime.format = 'unix'
+            row = {
+                'mode': str(args.mode),
+                'number': number,
+                'data': data,
+                'freqs': freq_range,
+                'time': apytime.value,
+                'azimuth': pos_altaz.az.degree,
+                'elevation': pos_altaz.alt.degree,
+                'longitude': pos.galactic.l.degree,
+                'latitude': pos.galactic.b.degree,
+                'ra': pos.icrs.ra.degree,
+                'dec': pos.icrs.dec.degree,
+                'rci_azimuth': tb.client.azimuth_position,
+                'rci_elevation': tb.client.elevation_position,
+            }
+            if darksky_offset:
+                row['darksky'] = darksky
 
-        vel_range = None
-        if 'longitude' in row:
-            vel_range=np.array(freqs_to_vel(freq, freq_range, row['longitude'],row.get('latitude', 0)))
-            contour_vels.append(vel_range)
-            row['vels'] = vel_range
+            vel_range = None
+            if 'longitude' in row:
+                vel_range=np.array(freqs_to_vel(freq, freq_range, row['longitude'],row.get('latitude', 0)))
+                row['vels'] = vel_range
 
-        all_data.append(row)
+            all_data.append(row)
 
-        for field in POSITION_FIELDS:
-            contour_iter_axes[field].append(np.full(len(freq_range), row[field]))
+            if not darksky:
+                # Only generate legacy data and plots for non-darksky data.
+                for field in POSITION_FIELDS:
+                    contour_iter_axes[field].append(np.full(len(freq_range), row[field]))
 
-        contour_freqs.append(freq_range)
+                contour_freqs.append(freq_range)
+                if vel_range is not None:
+                    contour_vels.append(vel_range)
 
-        contour_data.append(data)
+                contour_data.append(data)
 
-        apytime.format = 'fits'
-        csvrow = [str(row[x]) for x in POSITION_FIELDS]
-        if vel_range is not None:
-            csvrow += [str(f) for f in vel_range]
-        csvrow += [str(f) for f in data]
-        csvwriter.writerow(csvrow)
+                apytime.format = 'fits'
+                csvrow = [str(row[x]) for x in POSITION_FIELDS]
+                if vel_range is not None:
+                    csvrow += [str(f) for f in vel_range]
+                csvrow += [str(f) for f in data]
+                csvwriter.writerow(csvrow)
 
-        plot.plot_freq(freq, freq_range, data, iterator.format_title(row) + ' ' + str(apytime))
-        plot.plt.savefig(os.path.join(savefolder, iterator.format_filename(row)+'_freq.pdf'))
-        plot.plt.close()
+                plot.plot_freq(freq, freq_range, data, iterator.format_title(row) + ' ' + str(apytime))
+                plot.plt.savefig(os.path.join(savefolder, iterator.format_filename(row)+'_freq.pdf'))
+                plot.plt.close()
 
-        if 'longitude' in row:
-            plot.plot_velocity(vel_range, data, iterator.format_title(row) + ' '+ str(apytime))
-            plot.plt.savefig(os.path.join(savefolder, iterator.format_filename(row)+'_vel.pdf'))
-            plot.plt.close()
+                if 'longitude' in row:
+                    plot.plot_velocity(vel_range, data, iterator.format_title(row) + ' '+ str(apytime))
+                    plot.plt.savefig(os.path.join(savefolder, iterator.format_filename(row)+'_vel.pdf'))
+                    plot.plt.close()
 
-        print('Data logged.')
-        print()
+            print('Data logged.')
+            print()
 
     all_data = dicts2array(all_data)
     np.save(os.path.join(savefolder, 'all_data.npy'), all_data)
