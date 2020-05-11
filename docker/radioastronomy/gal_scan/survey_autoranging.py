@@ -51,7 +51,7 @@ class repeat(object):
 LongitudePos = namedtuple('LongitudePos', 'azimuth elevation longitude latitude'.split())
 
 class longitude_iterator(iterator):
-    axes = {'azimuth': 'Azimuth', 'longitude': 'Galactic Longitude'}
+    axes = {'azimuth': 'Azimuth', 'elevation': 'Elevation', 'longitude': 'Galactic Longitude', 'latitude': 'Galactic Latitude'}
     fields = LongitudePos._fields
     
     def translate(self, lon):
@@ -70,7 +70,7 @@ class longitude_iterator(iterator):
 AzimuthPos = namedtuple('AzimuthPos', 'azimuth elevation'.split())
 
 class azimuth_iterator(iterator):
-    axes = {'azimuth': 'Azimuth'}
+    axes = {'azimuth': 'Azimuth', 'elevation': 'Elevation'}
     fields = AzimuthPos._fields
 
     def translate(self, az):
