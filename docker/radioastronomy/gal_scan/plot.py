@@ -90,6 +90,22 @@ def add_colorbar(mappable, normalized):
     cbar_ylabel = 'Estimated signal power' if normalized else 'Power'
     cbar.ax.set_ylabel(cbar_ylabel+' at feed (W/Hz)', rotation=-90, va="bottom")
 
+def plot_observations(contour_iter_axes, savefolder=None):
+    deg2rad = (2*np.pi)/360
+    for (x, y) in (('longitude', 'latitude'), ('azimuth', 'elevation')):
+        if x not in contour_iter_axes or y not in contour_iter_axes:
+            continue
+        plt.figure(figsize=(8,4.2))
+        plt.subplot(111, projection="aitoff")
+        plt.title("(%s, %s) observation positions" % (x,y))
+        plt.grid(True)
+        plt.plot(contour_iter_axes[x][:,0]*deg2rad, contour_iter_axes[y][:,0]*deg2rad, 'o', markersize=2, alpha=0.3)
+        plt.subplots_adjust(top=0.95,bottom=0.0)
+        plt.show()
+        if savefolder:
+            plt.savefig(os.path.join(savefolder, 'observations_'+x+'_'+y+'.pdf'))
+            plt.close()
+
 def plot_2d(contour_freqs, contour_vels, contour_data, contour_iter_axes, savefolder=None):
     """2D plot of (position, frequency, brightness).
 
@@ -263,6 +279,7 @@ def main():
         savefolder = '.'
 
     plot_2d(contour_freqs, contour_vels, contour_data, contour_iter_axes, savefolder=savefolder)
+    plot_observations(contour_iter_axes, savefolder=savefolder)
 
 if __name__ == '__main__':
     main()
