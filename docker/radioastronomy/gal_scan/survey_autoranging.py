@@ -136,6 +136,13 @@ def run_survey(tb, savefolder, iterator, gain=60, int_time=30):
     csvwriter.writerow(['time'] + list(iterator.fields) + [str(f) for f in freq_range]*freq_count)
     file.write(' '.join(iterator.fields) + ' Time Center Data_vector \n \n')
 
+    # all_data is a list of dictionaries containg all information about a run;
+    # 'data' contains the raw data, 'freqs' contains the frequency for each sample
+    # 'timestamp' contains the observation time
+    # 'rci_azimuth' and 'rci_elevation' contain the actual azimuth and elevation for the observation
+    # all other fields come from pos
+    all_data = []
+    # Legacy arrays
     contour_iter_axes = {field: [] for field in iterator.axes}
     contour_freqs = []
     contour_vels = []
@@ -181,10 +188,28 @@ def run_survey(tb, savefolder, iterator, gain=60, int_time=30):
             plot.plt.savefig(os.path.join(savefolder, iterator.format_filename(pos)+'_vel.pdf'))
             plot.plt.close()
 
+        apytime.format = 'unix'
+
+        row = {
+            'data': tuple(data),
+            'freqs': freq_range,
+            'timestamp': apytime.value,
+            'rci_azimuth': tb.client.azimuth_position,
+            'rci_elevation': tb.client.elevation_position,
+            'darksky': False,
+        }
+        if vel_range is not None:
+            row['vels'] = vel_range
+        row.update(pos._asdict())
+        all_data.append(row)
+
         print('Data logged.')
         print()
 
     file.close()
+
+    all_data = dicts2array(all_data)
+    np.save(os.path.join(savefolder, 'all_data.npy'), all_data)
 
     contour_iter_axes = {x: np.array(y) for x, y in contour_iter_axes.items()}
     contour_freqs = np.array(contour_freqs)
@@ -200,3 +225,21 @@ def run_survey(tb, savefolder, iterator, gain=60, int_time=30):
 
     plot.plot_2d(contour_freqs, contour_vels, contour_data, contour_iter_axes, savefolder)
     plot.plot_observations(contour_iter_axes, savefolder)
+
+def dicts2array(dicts):
+    dt_tuples = []
+    for key, value in dicts[0].items():
+        if not isinstance(value, str):
+            value_dtype = np.array([value]).dtype
+            shape = np.array([value]).shape[1:]
+        else:
+            value_dtype = '|S{}'.format(max([len(d[key]) for d in dicts]))
+            shape = ()
+        dt_tuples.append((key, value_dtype, shape))
+    dt = np.dtype(dt_tuples)
+    values = [tuple(d[name] for name in dt.names) for d in dicts]
+    try:
+        return np.array(values, dtype=dt)
+    except ValueError:
+        print(values, dt)
+        raise
