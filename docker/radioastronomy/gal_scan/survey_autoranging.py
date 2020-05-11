@@ -208,8 +208,7 @@ def run_survey(tb, savefolder, iterator, args, gain=60, int_time=30):
         contour_vels = np.array(contour_vels)
         np.save(os.path.join(savefolder, 'contour_vels.npy'), contour_vels)
 
-    plot.plot_2d(contour_freqs, contour_vels, contour_data, contour_iter_axes, savefolder)
-    plot.plot_observations(contour_iter_axes, savefolder)
+    plot.plot(all_data, savefolder)
 
 def dicts2array(dicts):
     dt_tuples = []

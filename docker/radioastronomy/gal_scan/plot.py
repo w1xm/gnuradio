@@ -18,6 +18,8 @@ import sys
 import os.path
 import numpy as np
 from numpy.polynomial.polynomial import polyfit, polyval
+from astropy import units as u
+from astropy.coordinates import Angle
 import matplotlib as mpl
 if 'matplotlib.backends' not in sys.modules:
     mpl.use('Agg')
@@ -53,7 +55,7 @@ AXIS_NAMES = {
     'rci_azimuth': 'Actual Azimuth',
 }
 
-def find_shift(axis_data, ydata, contour_data):
+def find_shift(all_data, axis):
     """Eliminate wraparound discontinuities if necessary.
 
     If there is a discontinuity in the axis (e.g. missed scan data
@@ -61,11 +63,11 @@ def find_shift(axis_data, ydata, contour_data):
     to the start, and reattach the discontinuous rows.
 
     Returns:
-        The input arrays, possibly shifted to remove a discontinuity.
+        The input array, possibly shifted to remove a discontinuity.
 
     """
-    axis = axis_data[:, 0]
-    diffs = np.diff(axis)
+    axis_data = all_data[axis]
+    diffs = np.diff(axis_data)
     adiffs = np.abs(diffs)
     gap_index = adiffs.argmax()
     gap = adiffs[gap_index]
@@ -77,14 +79,10 @@ def find_shift(axis_data, ydata, contour_data):
 
         # Remove gap_index rows from the axis and data arrays and prepend those rows.
         gap_index += 1
-        prefix = axis_data[gap_index:]
-        suffix = axis_data[:gap_index]
+        all_data = np.roll(all_data, -gap_index, 0)
         if diffs[0] > 0:
-            prefix = prefix - 360
-        axis_data = np.concatenate((prefix, suffix))
-        ydata = np.roll(ydata, -gap_index, 0)
-        contour_data = np.roll(contour_data, -gap_index, 0)
-    return axis_data, ydata, contour_data
+            all_data[axis][:gap_index] == 360
+    return all_data
 
 def add_colorbar(mappable, normalized):
     """Add a colorbar to the plot for mappable."""
@@ -92,106 +90,111 @@ def add_colorbar(mappable, normalized):
     cbar_ylabel = 'Estimated signal power' if normalized else 'Power'
     cbar.ax.set_ylabel(cbar_ylabel+' at feed (W/Hz)', rotation=-90, va="bottom")
 
-def plot_observations(contour_iter_axes, savefolder=None):
+def plot_observations(all_data, savefolder=None):
     deg2rad = (2*np.pi)/360
-    for (x, y) in (('longitude', 'latitude'), ('azimuth', 'elevation')):
-        if x not in contour_iter_axes or y not in contour_iter_axes:
+    for (x, y) in (('longitude', 'latitude'), ('azimuth', 'elevation'), ('rci_azimuth', 'rci_elevation'), ('ra', 'dec')):
+        if x not in all_data.dtype.fields or y not in all_data.dtype.fields:
             continue
         plt.figure(figsize=(8,4.2))
         plt.subplot(111, projection="aitoff")
-        plt.title("(%s, %s) observation positions" % (x,y))
+        plt.title("(%s, %s) observation positions" % (x,y), y=1.08)
         plt.grid(True)
-        plt.plot(contour_iter_axes[x][:,0]*deg2rad, contour_iter_axes[y][:,0]*deg2rad, 'o', markersize=2, alpha=0.3)
+        xaxis = Angle(all_data[x], unit=u.deg).wrap_at(180*u.deg).radian
+        yaxis = Angle(all_data[y], unit=u.deg).wrap_at(90*u.deg).radian
+        plt.plot(xaxis, yaxis, 'o', markersize=2, alpha=0.3)
         plt.subplots_adjust(top=0.95,bottom=0.0)
         plt.show()
         if savefolder:
             plt.savefig(os.path.join(savefolder, 'observations_'+x+'_'+y+'.pdf'))
             plt.close()
 
-def plot_2d(contour_freqs, contour_vels, contour_data, contour_iter_axes, savefolder=None):
+def plot_2d(all_data, xaxis, yaxis='freqs', normalized=False, savefolder=None):
     """2D plot of (position, frequency, brightness).
 
     If velocity information is available, the Y-axis shows velocity
     instead of frequency.
 
     Args:
-        contour_freqs: 2D array of frequencies corresponding to each point in contour_data
-        contour_vels: None or 2D array of velocities corresponding to each point in contour_data
-        contour_data: 2D array of observations
-        contour_iter_axes: dictionary of {
-            position type: 2D array of positions corresponding to each point in contour_data
-            }
+        all_data: np.array containing a struct with at least 'freqs' and 'data' fields
+        xaxis: name of field to use as xaxis
+        yaxis: name ot field to use as yaxis ('freqs' or 'vels')
+        normalized: whether to use polynomial fitting to remove background noise
         savefolder: string location to save plots, if specified
     """
     # TODO: Plot both frequency and velocity
-    ydata = contour_freqs
-    ylabel = 'Frequency (MHz)'
-    if contour_vels is not None:
-        ydata = contour_vels
-        ylabel = 'Velocity (km/s)'
+    ydata = all_data[yaxis]
+    ylabel = {
+        'freqs': 'Frequency (MHz)',
+        'vels': 'Velocity (km/s)',
+    }[yaxis]
+    xlabel = AXIS_NAMES.get(xaxis,xaxis)
+    print('Plotting %s vs %s' % (xlabel, ylabel))
+    if len(np.unique(all_data[xaxis])) == 1:
+        # 2D plots require multiple points
+        print('Skipped due to a single point')
+        return
+    @contextmanager
+    def figure(name):
+        fig = plt.figure()
+        plt.xlabel(xlabel)
+        plt.ylabel(ylabel)
+        plt.ticklabel_format(useOffset=False)
+        yield fig
+        if savefolder:
+            plt.savefig(os.path.join(savefolder, '2d_'+xaxis+'_'+name+suffix+'.pdf'))
+            plt.close()
 
-    for normalized in (False, True):
-        for xaxis in contour_iter_axes:
-            if len(np.unique(contour_iter_axes[xaxis])) == 1:
-                # 2D plots require multiple points
-                continue
-            @contextmanager
-            def figure(name):
-                fig = plt.figure()
-                plt.xlabel(AXIS_NAMES.get(xaxis,xaxis))
-                plt.ylabel(ylabel)
-                plt.ticklabel_format(useOffset=False)
-                yield fig
-                if savefolder:
-                    plt.savefig(os.path.join(savefolder, '2d_'+xaxis+'_'+name+suffix+'.pdf'))
-                    plt.close()
+    suffix = '_normalized' if normalized else ''
+    all_data = find_shift(all_data, xaxis)
 
-            suffix = '_normalized' if normalized else ''
-            shifted_xdata, shifted_ydata, shifted_contour_data = find_shift(
-                contour_iter_axes[xaxis], ydata, contour_data)
+    xdata = all_data[xaxis]
+    contour_data = all_data['data']
+    # Some fields are scalar
+    if xdata.shape != contour_data.shape:
+        xdata = np.broadcast_to(xdata, reversed(contour_data.shape)).transpose()
 
-            if normalized:
-                shifted_contour_data = correct_contour_data(shifted_contour_data)
+    if normalized:
+        contour_data = correct_contour_data(contour_data)
 
-            # Calculate reasonable bounds for the Z axis.
-            # The minimum is selected as the median value in the background portion of the plot.
-            # The maximum is the 95th percentile value across the whole plot.
-            vmin = np.percentile(shifted_contour_data[:, CORRECTION_POLY_POINTS], 50)
-            if not normalized:
-                vmin = max(0.8e-16, vmin)
-            vmax = np.percentile(shifted_contour_data, 95)
+    # Calculate reasonable bounds for the Z axis.
+    # The minimum is selected as the median value in the background portion of the plot.
+    # The maximum is the 95th percentile value across the whole plot.
+    vmin = np.percentile(contour_data[:, CORRECTION_POLY_POINTS], 50)
+    if not normalized:
+        vmin = max(0.8e-16, vmin)
+    vmax = np.percentile(contour_data, 95)
 
-            with figure('contour'):
-                cntr = plt.contourf(shifted_xdata, shifted_ydata,
-                                    np.clip(
-                                        shifted_contour_data,
-                                        vmin, vmax),
-                                    100,
-                                    extend='both',
-                                    vmin=vmin, vmax=vmax)
-                add_colorbar(cntr, normalized)
+    with figure('contour'):
+        cntr = plt.contourf(xdata, ydata,
+                            np.clip(
+                                contour_data,
+                                vmin, vmax),
+                            100,
+                            extend='both',
+                            vmin=vmin, vmax=vmax)
+        add_colorbar(cntr, normalized)
 
-            norm = None
-            if not normalized:
-                norm = colors.LogNorm()
+    norm = None
+    if not normalized:
+        norm = colors.LogNorm()
 
-            with figure('mesh'):
-                # pcolormesh without shading treats x and y as the
-                # coordinates of the top left corner of the box.
-                # So we need to shift the points up and to the left one half step so that the boxes are centered on the correct position.
-                mesh_xdata = center_mesh_coords(shifted_xdata)
-                mesh_ydata = center_mesh_coords(shifted_ydata)
-                pcm = plt.pcolormesh(mesh_xdata, mesh_ydata, shifted_contour_data,
-                                     vmin=vmin, vmax=vmax,
-                                     norm=norm)
-                add_colorbar(pcm, normalized)
+    with figure('mesh'):
+        # pcolormesh without shading treats x and y as the
+        # coordinates of the top left corner of the box.
+        # So we need to shift the points up and to the left one half step so that the boxes are centered on the correct position.
+        mesh_xdata = center_mesh_coords(xdata)
+        mesh_ydata = center_mesh_coords(ydata)
+        pcm = plt.pcolormesh(mesh_xdata, mesh_ydata, contour_data,
+                             vmin=vmin, vmax=vmax,
+                             norm=norm)
+        add_colorbar(pcm, normalized)
 
-            with figure('mesh_interpolated'):
-                pcm = plt.pcolormesh(shifted_xdata, shifted_ydata, shifted_contour_data,
-                                     vmin=vmin, vmax=vmax,
-                                     shading='gouraud',
-                                     norm=norm)
-                add_colorbar(pcm, normalized)
+    with figure('mesh_interpolated'):
+        pcm = plt.pcolormesh(xdata, ydata, contour_data,
+                             vmin=vmin, vmax=vmax,
+                             shading='gouraud',
+                             norm=norm)
+        add_colorbar(pcm, normalized)
 
 def center_mesh_coords(data):
     """Shift coordinates in data by one half step,
@@ -255,36 +258,82 @@ def correct_contour_data(contour_data, visualize=False):
     # To restore average background noise level: + np.median(coefficients[0])
     return contour_data - correction_matrix
 
+def average_data(contour_data, contour_iter_axes, axis_names):
+    """Average data with identical values for axis_names.
+
+    Useful when --repeat is specified to gal_scan.
+    """
+    samples = contour_data.shape[-1]
+    # Find the coordinates that correspond to each row of contour_data
+    scoords = np.zeros(contour_data.shape[0], dtype={'names': axis_names, 'formats': (contour_data.dtype,)*len(axis_names)})
+    for i, x in axis_names:
+        scoords[x] = contour_iter_axes[x][:,0]
+
+    coords = np.stack([contour_iter_axes[x][:,0] for x in (axis_names)], axis=-1)
+    ncoords = coords.shape[0]
+    # New output axes that contain each coordinate only once
+    new_axes = {name: np.broadcast_to(coords[:,i], (samples, ncoords)).transpose() for i, name in enumerate(axis_names)}
+    new_data = np.zeros_like(new_axes)
+
+
 def load_data():
     """Load existing data files.
 
     Returns:
         dict of {type: array}
     """
+    try:
+        return np.load('all_data.npy')
+    except IOError:
+        # Revert to loading legacy data
+        pass
+    axis_names = []
+    axes = []
     contour_iter_axes = {}
     for name in glob.glob("contour_*.npy"):
         key = name.split('_', 1)[1].rsplit('.', 1)[0]
-        contour_iter_axes[key] = np.load(name)
-    return contour_iter_axes
+        axis_names.append(key)
+        data = np.load(name)
+        if key not in ('data', 'freqs', 'vels'):
+            data = data[:,0]
+        axes.append(data)
+    return np.array(axes, dtype=((x, axes[i].dtype, axes[i].shape) for i,x in enumerate(axis_names)))
 
 def main():
     # Invoke plot.py to replot an existing dataset
-
-    contour_iter_axes = load_data()
-    contour_freqs = contour_iter_axes.pop('freqs')
-    contour_data = contour_iter_axes.pop('data')
-    contour_vels = None
-    if 'vels' in contour_iter_axes:
-        contour_vels = contour_iter_axes.pop('vels')
-
-    print("Plotting axes:", contour_iter_axes.keys())
 
     savefolder = None
     if mpl.get_backend().lower() == 'agg':
         savefolder = '.'
 
-    plot_2d(contour_freqs, contour_vels, contour_data, contour_iter_axes, savefolder=savefolder)
-    plot_observations(contour_iter_axes, savefolder=savefolder)
+    all_data = load_data()
+    plot(all_data, savefolder=savefolder)
+
+def plot(all_data, savefolder=None):
+    """Regenerate all default plots for all_data"""
+
+    all_axes = set(all_data.dtype.fields.keys())
+    xaxes = all_axes - set('freqs vels data'.split())
+    if 'mode' in all_data.dtype.fields:
+        mode = all_data['mode'][0]
+        if mode == 'az':
+            xaxes = 'azimuth rci_azimuth'.split()
+        elif mode == 'gal':
+            xaxes = 'azimuth rci_azimuth longitude'.split()
+        elif mode == 'grid':
+            xaxes = 'azimuth rci_azimuth longitude latitude'.split()
+    xaxes = all_axes & set(xaxes)
+    print("Plotting axes:", xaxes)
+
+    yaxis = 'freqs'
+    if 'vels' in all_data.dtype.fields:
+        yaxis = 'vels'
+
+    for normalized in (False, True):
+        for xaxis in xaxes:
+            for normalized in (False, True):
+                plot_2d(all_data, xaxis, yaxis, normalized=normalized, savefolder=savefolder)
+    plot_observations(all_data, savefolder=savefolder)
 
 if __name__ == '__main__':
     main()
