@@ -87,28 +87,6 @@ class radiotelescope(flowgraph):
         self.point(250,50)
 
 
-#axis extremes
-flo=1420.4-0.75
-fhi=1420.4+0.75
-def graphing(tb, int_time, iter=float('inf')):
-    plt.ion()
-    plt.figure()
-    vec=tb.get_variable_function_probe() #vector
-    n=len(vec)
-    x=np.linspace(flo, fhi, n)
-    i=0
-    while(i<iter):
-        plt.pause(int_time)
-        y=tb.observe(int_time)
-        plt.clf()
-        plt.xlabel('Frequency (MHz)')
-        plt.ylabel('Scaled power')
-        plt.axvline(x=1420.406, color='black', ls='--')
-        plt.ticklabel_format(useOffset=False)
-        plt.plot(x,y)
-        plt.draw()
-        i+=1
-
 class Mode(Enum):
     gal = 'gal'
     az = 'az'
