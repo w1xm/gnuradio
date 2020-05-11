@@ -132,10 +132,18 @@ def main(top_block_cls=radiotelescope, options=None):
                         help='starting position')
     parser.add_argument('--stop', type=float, default=360,
                         help='ending position')
+    parser.add_argument('--rotation', type=float,
+                        help='degrees to rotate grid off-axis')
+    parser.add_argument('--rotation-frame', default='icrs',
+                        help='frame to rotate grid in')
     parser.add_argument('--lat', type=float,
                         help='galactic latitude to scan (for grid mode)')
     parser.add_argument('--lon', type=float,
                         help='galactic longitude to scan (for grid mode)')
+    parser.add_argument('--obj-name',
+                        help='named object to scan')
+    parser.add_argument('--repeat', type=int, default=1,
+                        help='number of times to repeat scan')
     args = parser.parse_args()
 
     iterator_cls = {
@@ -145,6 +153,9 @@ def main(top_block_cls=radiotelescope, options=None):
         }[args.mode]
 
     iterator = iterator_cls(**vars(args))
+
+    if args.repeat:
+        iterator = survey_autoranging.repeat(iterator, args.repeat)
 
     try:
         os.mkdir(args.output_dir)

@@ -6,22 +6,27 @@ import matplotlib as mpl
 mpl.use('Agg')
 from galcoord import freqs_to_vel
 from galcoord import gal_to_altaz
+from galcoord import directional_offset_by
 import numpy as np
 from galcoord import get_time
 import os.path
+import itertools
 import time
 import csv
 from collections import namedtuple
 import plot
+from astropy.coordinates import SkyCoord
+from astropy import units as u
 
 class iterator(object):
     def __init__(self, start, stop, step, **kwargs):
         self.start = start
         self.stop = stop
         self.step = step
-        self.iter = iter(np.arange(start, stop+step, step))
+        self.iter_source = np.arange(start, stop+step, step)
 
     def __iter__(self):
+        self.iter = iter(self.iter_source)
         return self
 
     def __next__(self):
@@ -31,6 +36,17 @@ class iterator(object):
             if translated:
                 return translated
     next = __next__
+
+class repeat(object):
+    def __init__(self, wrapped, count):
+        self.wrapped = wrapped
+        self.count = count
+
+    def __iter__(self):
+        return itertools.chain(*((self.wrapped,)*self.count))
+
+    def __getattr__(self, name):
+        return getattr(self.wrapped, name)
 
 LongitudePos = namedtuple('LongitudePos', 'azimuth elevation longitude latitude'.split())
 
@@ -70,16 +86,26 @@ class grid_iterator(iterator):
     axes = {'azimuth': 'Azimuth', 'elevation': 'Elevation', 'latitude': 'Galactic Latitude', 'longitude': 'Galactic Longitude'}
     fields = LongitudePos._fields
 
-    def __init__(self, start, stop, step, lat, lon, **kwargs):
-        self.lat = lat
-        self.lon = lon
-        self.coords = [(lat + x, lon + y) for x in np.arange(start, stop+step, step) for y in np.arange(start, stop+step, step)]
-        self.iter = iter(self.coords)
+    def __init__(self, start, stop, step, rotation, rotation_frame, obj_name, lat, lon, **kwargs):
+        if obj_name:
+            self.center = SkyCoord.from_name(obj_name)
+        else:
+            self.center = SkyCoord(l=lon*u.degree, b=lat*u.degree, frame='galactic')
+        if rotation:
+            self.center = self.center.transform_to(rotation_frame)
+        else:
+            rotation = 0
+        steps = np.arange(start, stop+step, step)
+        sc = directional_offset_by(
+            directional_offset_by(self.center, rotation*u.degree, steps*u.degree),
+            (rotation+90)*u.degree, np.expand_dims(steps, 1)*u.degree)
+        self.coords = sc.galactic.flatten()
+        self.iter_source = self.coords
 
-    def translate(self, (lat, lon)):
-        az, el = gal_to_altaz(lon, lat)
+    def translate(self, sc):
+        az, el = gal_to_altaz(sc.l/u.degree, sc.b/u.degree)
         if el > 0:
-            return LongitudePos(az, el, lon, lat)
+            return LongitudePos(az, el, sc.l/u.degree, sc.b/u.degree)
         return None
 
     def format_filename(self, pos):

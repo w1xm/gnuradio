@@ -6,14 +6,17 @@ from astropy.utils import iers
 iers.conf.iers_auto_url = "ftp://cddis.gsfc.nasa.gov/pub/products/iers/finals2000A.all"
 #"https://datacenter.iers.org/data/9/finals2000A.all"
 from astropy.coordinates import SkyCoord
+from astropy.coordinates import Angle
 from astropy.coordinates import ICRS
 from astropy.coordinates import GCRS
 from astropy.coordinates import Galactic
 from astropy.coordinates import Galactocentric
+from astropy.coordinates import UnitSphericalRepresentation
 from astropy import units as u
 from astropy.constants import c
 from astropy.time import Time
 from astroplan import Observer
+import numpy as np
 #from astroplan import FixedTarget
 #Mars = FixedTarget.from_name("mars")
 
@@ -48,9 +51,11 @@ def freqs_to_vel(center_freq, fs, lcoord,bcoord):
     unit_vector = cart_data / cart_data.norm()
     v_proj = v_sun.dot(unit_vector)
 
+    doppler_shift = u.doppler_radio(center_freq*u.MHz)
+
     def freq_to_vel(f):
         f = f * u.MHz
-        v_local = f.to(u.km/u.s, u.doppler_radio(center_freq*u.MHz))
+        v_local = f.to(u.km/u.s, doppler_shift)
         v_bary = v_local + v_to_bary + v_local * v_to_bary / c
         # v_bary is now barycentric; now we need to remove the solar system motion as well
         return (v_bary + v_proj) / (u.km/u.s)
@@ -117,3 +122,59 @@ def get_moon_altaz():
 #    time=Time.now()    #print time
 #    pos=radome_observer.altaz(time,Target=Mars)
  #   return (pos.az.degree, pos.alt.degree)
+
+# From AstroPy 4.0 (not compatible with Python 2.7)
+def directional_offset_by(coord, position_angle, separation):
+    slat = coord.represent_as(UnitSphericalRepresentation).lat
+    slon = coord.represent_as(UnitSphericalRepresentation).lon
+
+    newlon, newlat = offset_by(
+        lon=slon, lat=slat,
+        posang=position_angle, distance=separation)
+
+    return SkyCoord(newlon, newlat, frame=coord.frame)
+
+def offset_by(lon, lat, posang, distance):
+    # Calculations are done using the spherical trigonometry sine and cosine rules
+    # of the triangle A at North Pole,   B at starting point,   C at final point
+    # with angles     A (change in lon), B (posang),            C (not used, but negative reciprocal posang)
+    # with sides      a (distance),      b (final co-latitude), c (starting colatitude)
+    # B, a, c are knowns; A and b are unknowns
+    # https://en.wikipedia.org/wiki/Spherical_trigonometry
+
+    cos_a = np.cos(distance)
+    sin_a = np.sin(distance)
+    cos_c = np.sin(lat)
+    sin_c = np.cos(lat)
+    cos_B = np.cos(posang)
+    sin_B = np.sin(posang)
+
+    # cosine rule: Know two sides: a,c and included angle: B; get unknown side b
+    cos_b = cos_c * cos_a + sin_c * sin_a * cos_B
+    # sin_b = np.sqrt(1 - cos_b**2)
+    # sine rule and cosine rule for A (using both lets arctan2 pick quadrant).
+    # multiplying both sin_A and cos_A by x=sin_b * sin_c prevents /0 errors
+    # at poles.  Correct for the x=0 multiplication a few lines down.
+    # sin_A/sin_a == sin_B/sin_b    # Sine rule
+    xsin_A = sin_a * sin_B * sin_c
+    # cos_a == cos_b * cos_c + sin_b * sin_c * cos_A  # cosine rule
+    xcos_A = cos_a - cos_b * cos_c
+
+    A = Angle(np.arctan2(xsin_A, xcos_A), u.radian)
+    # Treat the poles as if they are infinitesimally far from pole but at given lon
+    small_sin_c = sin_c < 1e-12
+    if small_sin_c.any():
+        # For south pole (cos_c = -1), A = posang; for North pole, A=180 deg - posang
+        A_pole = (90*u.deg + cos_c*(90*u.deg-Angle(posang, u.radian))).to(u.rad)
+        if A.shape:
+            # broadcast to ensure the shape is like that of A, which is also
+            # affected by the (possible) shapes of lat, posang, and distance.
+            small_sin_c = np.broadcast_to(small_sin_c, A.shape)
+            A[small_sin_c] = A_pole[small_sin_c]
+        else:
+            A = A_pole
+
+    outlon = (Angle(lon, u.radian) + A).wrap_at(360.0*u.deg).to(u.deg)
+    outlat = Angle(np.arcsin(cos_b), u.radian).to(u.deg)
+
+    return outlon, outlat
