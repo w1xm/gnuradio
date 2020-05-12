@@ -18,15 +18,17 @@ import sys
 import os.path
 import numpy as np
 from numpy.polynomial.polynomial import polyfit, polyval
+from numpy.lib.recfunctions import get_fieldspec, izip_records
 from astropy import units as u
 from astropy.coordinates import Angle
+from scipy import ndimage
 import matplotlib as mpl
 if 'matplotlib.backends' not in sys.modules:
     mpl.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 
-def plot_freq(freq, freq_range, data, title):
+def plot_freq(freq, freq_range, data, title, filename):
     """Plot a frequency binned figure."""
     plt.figure()
     plt.title(title)
@@ -35,8 +37,11 @@ def plot_freq(freq, freq_range, data, title):
     plt.axvline(x=freq, color='black', ls='--')
     plt.ticklabel_format(useOffset=False)
     plt.plot(freq_range, data)
+    if filename:
+        plt.savefig(filename)
+        plt.close()
 
-def plot_velocity(vel_range, data, title):
+def plot_velocity(vel_range, data, title, filename):
     """Plot a velocity binned figure."""
     plt.figure()
     plt.title(title)
@@ -45,6 +50,9 @@ def plot_velocity(vel_range, data, title):
     plt.axvline(x=0, color='black', ls='--')
     plt.ticklabel_format(useOffset=False)
     plt.plot(vel_range, data)
+    if filename:
+        plt.savefig(filename)
+        plt.close()
 
 AXIS_NAMES = {
     'azimuth': 'Azimuth',
@@ -262,23 +270,83 @@ def normalize_data(all_data, visualize=False):
     all_data['data'] -= correction_matrix
     return all_data
 
-def average_data(contour_data, contour_iter_axes, axis_names):
+def average_data(all_data, axis_names, velocity_correction=True):
     """Average data with identical values for axis_names.
 
     Useful when --repeat is specified to gal_scan.
     """
-    samples = contour_data.shape[-1]
+    num_samples = all_data['data'].shape[-1]
     # Find the coordinates that correspond to each row of contour_data
-    scoords = np.zeros(contour_data.shape[0], dtype={'names': axis_names, 'formats': (contour_data.dtype,)*len(axis_names)})
-    for i, x in axis_names:
-        scoords[x] = contour_iter_axes[x][:,0]
+    coords = all_data[list(axis_names)]
+    uniq_coords = np.unique(coords)
+    uniq_data = np.zeros(
+        uniq_coords.shape,
+        dtype=[
+            ('count', float),
+            ('freqs', float, all_data['freqs'].shape[1:]),
+            ('vels', float, all_data['vels'].shape[1:]),
+            ('data', float, all_data['data'].shape[1:]),
+        ])
 
-    coords = np.stack([contour_iter_axes[x][:,0] for x in (axis_names)], axis=-1)
-    ncoords = coords.shape[0]
-    # New output axes that contain each coordinate only once
-    new_axes = {name: np.broadcast_to(coords[:,i], (samples, ncoords)).transpose() for i, name in enumerate(axis_names)}
-    new_data = np.zeros_like(new_axes)
+    for i, coord in enumerate(uniq_coords):
+        row = uniq_data[i]
+        old_data = all_data[coords[:] == uniq_coords[i]]
+        row['count'] = old_data.shape[0]
+        row['freqs'] = old_data[0]['freqs']
+        row['vels'] = old_data[0]['vels']
+        if velocity_correction:
+            row['data'] = average_point(old_data['data'], old_data['vels'])
+        else:
+            row['data'] = np.mean(old_data['data'], axis=0)
 
+    merged = merge_matched_arrays([uniq_coords, uniq_data])
+    return merged
+
+def merge_matched_arrays(seqarrays):
+    seqdata = [a.ravel().__array__() for a in seqarrays]
+    newdtype = []
+    for a in seqarrays:
+        newdtype.extend(get_fieldspec(a.dtype))
+    return np.fromiter(tuple(izip_records(seqdata)),
+                       dtype=np.dtype(newdtype))
+
+def average_point(scans, vels):
+    """Average samples across a run.
+    Takes in 2D data array and corresponding velocities.
+    Aligns to correct for Doppler shift.
+    Used for multiple observations of a single point.
+
+    Returns:
+           single-axis numpy array with average of data points
+    """
+
+    num_scans = scans.shape[0] #get number of scans
+    num_samples = scans.shape[1] #get number of samples per scan
+
+    vel_step = vels[0,0]-vels[0,1] #compute sample offset based on previously computed velocities
+    differential_doppler_ratio= [(vels[0,0]/vels[i,0]) for i in range(num_scans)] #compute velocity shifts (this works correctly)
+
+    sample_vel_offset = vels[:,0] #velocity of sample index zero
+    sample_vel_slope = [(vels[i,(num_samples-1)] - vels[i,0])/num_samples for i in range(num_scans)]
+
+    """
+
+    backsolve for desired indices
+
+    velocity values for first scan are given by vel[i,n] = sample_vel_offset[0] + n * sample_vel_slope[0]
+
+    n = (vel - sample_vel_offset[i])/sample_vel_slope[i]
+
+    """
+
+    indices = np.zeros((2,num_scans,num_samples))
+    for i in range(num_scans):
+        for j in range(num_samples):
+            indices[:,i,j] = [i, np.float128(vels[0,j] - sample_vel_offset[i])/np.float128(sample_vel_slope[i])]
+
+    scans_shifted = ndimage.map_coordinates(scans, indices)
+
+    return np.mean(scans_shifted, 0)
 
 def load_data():
     """Load existing data files.
@@ -341,6 +409,11 @@ def main():
 def plot(all_data, savefolder=None):
     """Regenerate all default plots for all_data"""
 
+    def path(name):
+        if savefolder:
+            return os.path.join(savefolder, name)
+        return None
+
     has_darksky = 'darksky' in all_data.dtype.fields
     if has_darksky:
         raw_data, calibrated_data, darksky_obs = apply_darksky(all_data)
@@ -367,13 +440,24 @@ def plot(all_data, savefolder=None):
 
     if not has_darksky:
         normalized_data = normalize_data(normalized_data)
-    for normalized in (False, True):
-        for xaxis in xaxes:
-            plot_2d(raw_data, xaxis, yaxis, savefolder=savefolder)
-            if has_darksky:
-                plot_2d(calibrated_data, xaxis, yaxis, normalized='calibrated', savefolder=savefolder)
-            else:
-                plot_2d(normalized_data, xaxis, yaxis, normalized='normalized', savefolder=savefolder)
+
+    for xaxis in xaxes:
+        averaged_data = average_data(raw_data, [xaxis])
+        for row in averaged_data:
+            plot_velocity(row['vels'], row['data'], '%s=%s (n=%s)' % (xaxis, row[xaxis], row['count']), path('%s_%s_averaged.pdf' % (xaxis, row[xaxis])))
+
+        plot_2d(raw_data, xaxis, yaxis, savefolder=savefolder)
+        if has_darksky:
+            averaged_data = average_data(calibrated_data, [xaxis])
+            for row in averaged_data:
+                plot_velocity(row['vels'], row['data'], '%s=%s (n=%d)' % (xaxis, row[xaxis], row['count']), path('%s_%s_averaged_calibrated.pdf' % (xaxis, row[xaxis])))
+
+            plot_2d(calibrated_data, xaxis, yaxis, normalized='calibrated', savefolder=savefolder)
+        else:
+            averaged_data = average_data(normalized_data, [xaxis])
+            for row in averaged_data:
+                plot_velocity(row['vels'], row['data'], '%s=%s (n=%d)' % (xaxis, row[xaxis], row['count']), path('%s_%s_averaged_normalized.pdf' % (xaxis, row[xaxis])))
+            plot_2d(normalized_data, xaxis, yaxis, normalized='normalized', savefolder=savefolder)
     plot_observations(all_data, savefolder=savefolder)
 
 if __name__ == '__main__':

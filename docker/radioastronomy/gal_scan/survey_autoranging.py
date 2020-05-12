@@ -191,14 +191,12 @@ def run_survey(tb, savefolder, iterator, args, gain=60, int_time=30, darksky_off
                 csvrow += [str(f) for f in data]
                 csvwriter.writerow(csvrow)
 
-                plot.plot_freq(freq, freq_range, data, iterator.format_title(row) + ' ' + str(apytime))
-                plot.plt.savefig(os.path.join(savefolder, iterator.format_filename(row)+'_freq.pdf'))
-                plot.plt.close()
+                prefix=os.path.join(savefolder, 'observation_%d' % (number))
+
+                plot.plot_freq(freq, freq_range, data, iterator.format_title(row) + ' ' + str(apytime), prefix+'_freq.pdf')
 
                 if 'longitude' in row:
-                    plot.plot_velocity(vel_range, data, iterator.format_title(row) + ' '+ str(apytime))
-                    plot.plt.savefig(os.path.join(savefolder, iterator.format_filename(row)+'_vel.pdf'))
-                    plot.plt.close()
+                    plot.plot_velocity(vel_range, data, iterator.format_title(row) + ' '+ str(apytime), prefix+'_vel.pdf')
 
             print('Data logged.')
             print()
