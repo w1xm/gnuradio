@@ -310,7 +310,7 @@ def merge_matched_arrays(seqarrays):
     seqdata = [a.ravel().__array__() for a in seqarrays]
     newdtype = []
     for a in seqarrays:
-        newdtype.extend((name, a.dtype.fields[name]) for name in a.dtype.names)
+        newdtype.extend((name, a.dtype.fields[name][0]) for name in a.dtype.names)
     return np.fromiter(tuple(izip_records(seqdata)),
                        dtype=np.dtype(newdtype))
 
