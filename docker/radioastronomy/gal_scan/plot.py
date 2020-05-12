@@ -66,6 +66,7 @@ def find_shift(all_data, axis):
         The input array, possibly shifted to remove a discontinuity.
 
     """
+    all_data = np.sort(all_data, order=axis)
     axis_data = all_data[axis]
     diffs = np.diff(axis_data)
     adiffs = np.abs(diffs)
@@ -99,9 +100,12 @@ def plot_observations(all_data, savefolder=None):
         plt.subplot(111, projection="aitoff")
         plt.title("(%s, %s) observation positions" % (x,y), y=1.08)
         plt.grid(True)
+        c = None
+        if 'darksky' in all_data.dtype.fields:
+            c = all_data['darksky']
         xaxis = Angle(all_data[x], unit=u.deg).wrap_at(180*u.deg).radian
         yaxis = Angle(all_data[y], unit=u.deg).wrap_at(90*u.deg).radian
-        plt.plot(xaxis, yaxis, 'o', markersize=2, alpha=0.3)
+        plt.scatter(xaxis, yaxis, c=c, marker='o', s=2, alpha=0.3)
         plt.subplots_adjust(top=0.95,bottom=0.0)
         plt.show()
         if savefolder:
@@ -144,7 +148,7 @@ def plot_2d(all_data, xaxis, yaxis='freqs', normalized=False, savefolder=None):
             plt.savefig(os.path.join(savefolder, '2d_'+xaxis+'_'+name+suffix+'.pdf'))
             plt.close()
 
-    suffix = '_normalized' if normalized else ''
+    suffix = ('_'+normalized) if normalized else ''
     all_data = find_shift(all_data, xaxis)
 
     xdata = all_data[xaxis]
@@ -152,9 +156,6 @@ def plot_2d(all_data, xaxis, yaxis='freqs', normalized=False, savefolder=None):
     # Some fields are scalar
     if xdata.shape != contour_data.shape:
         xdata = np.broadcast_to(xdata, reversed(contour_data.shape)).transpose()
-
-    if normalized:
-        contour_data = correct_contour_data(contour_data)
 
     # Calculate reasonable bounds for the Z axis.
     # The minimum is selected as the median value in the background portion of the plot.
@@ -231,7 +232,7 @@ def plot_sample_grid(xdata, ydata):
 CORRECTION_POLY_POINTS = np.array([75, 100, 125, 150, 175])
 # dsheen had 200, 225, 250 but those are within real data
 
-def correct_contour_data(contour_data, visualize=False):
+def normalize_data(all_data, visualize=False):
     """dsheen@'s polynomial fit algorithm
 
     This algorithm performs a first-order fit on noise information
@@ -242,12 +243,14 @@ def correct_contour_data(contour_data, visualize=False):
 
     The returned data represents the estimated observed signal power.
     """
+    # Make a copy so we don't modify the original
+    all_data = np.array(all_data)
 
     points = CORRECTION_POLY_POINTS
 
-    coefficients = polyfit(points, np.transpose(contour_data[:, points]), 1)
+    coefficients = polyfit(points, np.transpose(all_data['data'][:, points]), 1)
 
-    correction_matrix = polyval(np.arange(contour_data.shape[1]), coefficients)
+    correction_matrix = polyval(np.arange(all_data['data'].shape[1]), coefficients)
 
     if visualize: # visualize correction matrix
         plt.figure()
@@ -256,7 +259,8 @@ def correct_contour_data(contour_data, visualize=False):
         plt.show()
 
     # To restore average background noise level: + np.median(coefficients[0])
-    return contour_data - correction_matrix
+    all_data['data'] -= correction_matrix
+    return all_data
 
 def average_data(contour_data, contour_iter_axes, axis_names):
     """Average data with identical values for axis_names.
@@ -310,6 +314,20 @@ def load_data():
         axes.append(data)
     return np.array(axes, dtype=((x, axes[i].dtype, axes[i].shape) for i,x in enumerate(axis_names)))
 
+def apply_darksky(all_data):
+    """Apply darksky corrections.
+
+    Assumes that observations are in the same order.
+
+    Returns:
+        (uncorrected observations, corrected observations, darksky observations)
+    """
+    darksky_obs = all_data[all_data['darksky']]
+    uncorrected_obs = all_data[~all_data['darksky']]
+    corrected_obs = np.array(uncorrected_obs)
+    corrected_obs['data'] -= darksky_obs['data']
+    return uncorrected_obs, corrected_obs, darksky_obs
+
 def main():
     # Invoke plot.py to replot an existing dataset
 
@@ -322,6 +340,13 @@ def main():
 
 def plot(all_data, savefolder=None):
     """Regenerate all default plots for all_data"""
+
+    has_darksky = 'darksky' in all_data.dtype.fields
+    if has_darksky:
+        raw_data, calibrated_data, darksky_obs = apply_darksky(all_data)
+        # plot average darksky_obs
+    else:
+        raw_data = all_data
 
     all_axes = set(all_data.dtype.fields.keys())
     xaxes = all_axes - set('freqs vels data'.split())
@@ -340,10 +365,15 @@ def plot(all_data, savefolder=None):
     if 'vels' in all_data.dtype.fields:
         yaxis = 'vels'
 
+    if not has_darksky:
+        normalized_data = normalize_data(normalized_data)
     for normalized in (False, True):
         for xaxis in xaxes:
-            for normalized in (False, True):
-                plot_2d(all_data, xaxis, yaxis, normalized=normalized, savefolder=savefolder)
+            plot_2d(raw_data, xaxis, yaxis, savefolder=savefolder)
+            if has_darksky:
+                plot_2d(calibrated_data, xaxis, yaxis, normalized='calibrated', savefolder=savefolder)
+            else:
+                plot_2d(normalized_data, xaxis, yaxis, normalized='normalized', savefolder=savefolder)
     plot_observations(all_data, savefolder=savefolder)
 
 if __name__ == '__main__':
