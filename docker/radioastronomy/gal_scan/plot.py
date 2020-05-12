@@ -381,7 +381,8 @@ def load_data():
         if key not in ('data', 'freqs', 'vels'):
             data = data[:,0]
         axes.append(data)
-    return np.array(axes, dtype=((x, axes[i].dtype, axes[i].shape) for i,x in enumerate(axis_names)))
+    dtype = [(x, axes[i].dtype, axes[i].shape[1:]) for i,x in enumerate(axis_names)]
+    return np.array([tuple(x) for x in zip(*axes)], dtype=dtype)
 
 def apply_darksky(all_data):
     """Apply darksky corrections.
@@ -441,7 +442,7 @@ def plot(all_data, savefolder=None):
         yaxis = 'vels'
 
     if not has_darksky:
-        normalized_data = normalize_data(normalized_data)
+        normalized_data = normalize_data(raw_data)
 
     for xaxis in xaxes:
         averaged_data = average_data(raw_data, [xaxis])
