@@ -20,7 +20,7 @@ import sys
 import os.path
 import numpy as np
 from numpy.polynomial.polynomial import polyfit, polyval
-from numpy.lib.recfunctions import izip_records, structured_to_unstructured
+from numpy.lib.recfunctions import izip_records
 from astropy import units as u
 from astropy.coordinates import Angle
 from scipy import ndimage
@@ -307,6 +307,8 @@ def average_data(all_data, axis_names, velocity_correction=True):
     return merged
 
 def merge_matched_arrays(seqarrays):
+    """merge_matched_arrays takes a sequence of structured arrays and
+    merges them into a single structured array."""
     seqdata = [a.ravel().__array__() for a in seqarrays]
     newdtype = []
     for a in seqarrays:
@@ -418,6 +420,13 @@ def main():
 
     all_data = load_data()
     plot(all_data, savefolder=savefolder, **vars(args))
+
+def structured_to_unstructured(a):
+    """Backport of numpy.lib.recfunctions.structured_to_unstructured.
+
+    Unlike the original, this function does not create a view on the original array.
+    """
+    return np.stack([a[f] for f in a.dtype.names], axis=1)
 
 def plot(all_data, xaxes=None, outlier_percentile=None, max_pointing_error=2, savefolder=None):
     """Regenerate all default plots for all_data"""
