@@ -280,7 +280,18 @@ def load_data():
     """Load existing data files.
 
     Returns:
-        dict of {type: array}
+        np.array containg structs of each observation
+        Fields include:
+        - 'number' contains the observation number
+        - 'data' contains the raw data
+        - 'freqs' contains the frequency for each sample
+        - 'vels' contains relative velocity for each sample
+        - 'time' contains the observation time
+        - 'rci_azimuth' and 'rci_elevation' contain the actual azimuth and elevation for the observation
+        - 'azimuth' and 'elevation' contain the commanded azimuth and elevation
+        - 'longitude' and 'latitude' contain the Galactic coordinates
+        - 'ra' and 'dec' contain the ICRS coordinates
+        - 'darksky' indicates if the observation was a darksky correction (use 'number' to correlate darksky (False, True))
     """
     try:
         return np.load('all_data.npy')
