@@ -216,7 +216,7 @@ def run_survey(tb, savefolder, iterator, args, gain=60, int_time=30, darksky_off
         contour_vels = np.array(contour_vels)
         np.save(os.path.join(savefolder, 'contour_vels.npy'), contour_vels)
 
-    plot.plot(all_data, savefolder)
+    plot.plot(all_data, savefolder=savefolder)
 
 def dicts2array(dicts):
     dt_tuples = []
