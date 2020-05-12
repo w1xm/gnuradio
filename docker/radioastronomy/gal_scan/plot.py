@@ -20,7 +20,7 @@ import sys
 import os.path
 import numpy as np
 from numpy.polynomial.polynomial import polyfit, polyval
-from numpy.lib.recfunctions import get_fieldspec, izip_records, structured_to_unstructured
+from numpy.lib.recfunctions import izip_records, structured_to_unstructured
 from astropy import units as u
 from astropy.coordinates import Angle
 from scipy import ndimage
@@ -310,7 +310,7 @@ def merge_matched_arrays(seqarrays):
     seqdata = [a.ravel().__array__() for a in seqarrays]
     newdtype = []
     for a in seqarrays:
-        newdtype.extend(get_fieldspec(a.dtype))
+        newdtype.extend((name, a.dtype.fields[name]) for name in a.dtype.names)
     return np.fromiter(tuple(izip_records(seqdata)),
                        dtype=np.dtype(newdtype))
 
