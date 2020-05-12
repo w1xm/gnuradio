@@ -34,7 +34,8 @@ def plot_freq(freq, freq_range, data, title, filename):
     plt.title(title)
     plt.xlabel('Frequency (MHz)')
     plt.ylabel('Power at Feed (W/Hz)')
-    plt.axvline(x=freq, color='black', ls='--')
+    if freq:
+        plt.axvline(x=freq, color='black', ls='--')
     plt.ticklabel_format(useOffset=False)
     plt.plot(freq_range, data)
     if filename:
@@ -418,6 +419,7 @@ def plot(all_data, savefolder=None):
     if has_darksky:
         raw_data, calibrated_data, darksky_obs = apply_darksky(all_data)
         # plot average darksky_obs
+        plot_freq(None, darksky_obs[0]['freqs'], np.mean(darksky_obs['data'], axis=0), 'Average Darksky Measurement', path('darksky.pdf'))
     else:
         raw_data = all_data
 
@@ -426,11 +428,11 @@ def plot(all_data, savefolder=None):
     if 'mode' in all_data.dtype.fields:
         mode = all_data['mode'][0].decode()
         if mode == 'az':
-            xaxes = 'azimuth rci_azimuth'.split()
+            xaxes = 'number azimuth rci_azimuth'.split()
         elif mode == 'gal':
-            xaxes = 'rci_azimuth longitude'.split()
+            xaxes = 'number rci_azimuth longitude'.split()
         elif mode == 'grid':
-            xaxes = 'rci_azimuth longitude latitude'.split()
+            xaxes = 'number rci_azimuth longitude latitude'.split()
     xaxes = all_axes & set(xaxes)
     print("Plotting axes:", xaxes)
 
