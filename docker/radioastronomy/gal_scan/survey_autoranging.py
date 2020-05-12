@@ -137,7 +137,7 @@ def run_survey(tb, savefolder, iterator, args, gain=60, int_time=30, darksky_off
             apytime=get_time()
             pos_altaz = pos.transform_to(altaz_frame(apytime))
             if darksky:
-                pos_altaz = SkyCoord(pos_altaz.az+darksky_offset*u.degree, pos_altaz.alt, frame=pos_altaz.frame)
+                pos_altaz = directional_offset_by(pos_altaz, 90*u.degree, darksky_offset*u.degree)
                 pos = pos_altaz
             if pos_altaz.alt < 0:
                 print("Can't observe at %s; target is below the horizon" % pos)
