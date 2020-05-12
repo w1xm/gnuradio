@@ -46,7 +46,7 @@ def plot_velocity(vel_range, data, title, filename):
     plt.figure()
     plt.title(title)
     plt.xlabel('Velocity (km/s)')
-    plt.ylabel('Power at Feed (W)')
+    plt.ylabel('Power at Feed (W/Hz)')
     plt.axvline(x=0, color='black', ls='--')
     plt.ticklabel_format(useOffset=False)
     plt.plot(vel_range, data)
@@ -424,13 +424,13 @@ def plot(all_data, savefolder=None):
     all_axes = set(all_data.dtype.fields.keys())
     xaxes = all_axes - set('freqs vels data'.split())
     if 'mode' in all_data.dtype.fields:
-        mode = all_data['mode'][0]
+        mode = all_data['mode'][0].decode()
         if mode == 'az':
             xaxes = 'azimuth rci_azimuth'.split()
         elif mode == 'gal':
-            xaxes = 'azimuth rci_azimuth longitude'.split()
+            xaxes = 'rci_azimuth longitude'.split()
         elif mode == 'grid':
-            xaxes = 'azimuth rci_azimuth longitude latitude'.split()
+            xaxes = 'rci_azimuth longitude latitude'.split()
     xaxes = all_axes & set(xaxes)
     print("Plotting axes:", xaxes)
 
