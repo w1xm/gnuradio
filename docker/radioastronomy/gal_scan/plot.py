@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """Plotting functions and command.
 
 plot contains functions used by survey_autoranging to plot
@@ -12,13 +13,14 @@ README.md for further instructions.
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
+import argparse
 from contextlib import contextmanager
 import glob
 import sys
 import os.path
 import numpy as np
 from numpy.polynomial.polynomial import polyfit, polyval
-from numpy.lib.recfunctions import get_fieldspec, izip_records
+from numpy.lib.recfunctions import get_fieldspec, izip_records, structured_to_unstructured
 from astropy import units as u
 from astropy.coordinates import Angle
 from scipy import ndimage
@@ -100,7 +102,7 @@ def add_colorbar(mappable, normalized):
     cbar_ylabel = 'Estimated signal power' if normalized else 'Power'
     cbar.ax.set_ylabel(cbar_ylabel+' at feed (W/Hz)', rotation=-90, va="bottom")
 
-def plot_observations(all_data, savefolder=None):
+def plot_observations(all_data, bad_data, savefolder=None):
     deg2rad = (2*np.pi)/360
     for (x, y) in (('longitude', 'latitude'), ('azimuth', 'elevation'), ('rci_azimuth', 'rci_elevation'), ('ra', 'dec')):
         if x not in all_data.dtype.fields or y not in all_data.dtype.fields:
@@ -109,12 +111,13 @@ def plot_observations(all_data, savefolder=None):
         plt.subplot(111, projection="aitoff")
         plt.title("(%s, %s) observation positions" % (x,y), y=1.08)
         plt.grid(True)
-        c = None
-        if 'darksky' in all_data.dtype.fields:
-            c = all_data['darksky']
-        xaxis = Angle(all_data[x], unit=u.deg).wrap_at(180*u.deg).radian
-        yaxis = Angle(all_data[y], unit=u.deg).wrap_at(90*u.deg).radian
-        plt.scatter(xaxis, yaxis, c=c, marker='o', s=2, alpha=0.3)
+        for data, marker, cmap in ((all_data, 'o', 'winter'), (bad_data, 'x', 'autumn')):
+            c = None
+            if 'darksky' in data.dtype.fields:
+                c = data['darksky']
+            xaxis = Angle(data[x], unit=u.deg).wrap_at(180*u.deg).radian
+            yaxis = Angle(data[y], unit=u.deg).wrap_at(90*u.deg).radian
+            plt.scatter(xaxis, yaxis, c=c, cmap=cmap, marker=marker, s=2, alpha=0.3)
         plt.subplots_adjust(top=0.95,bottom=0.0)
         plt.show()
         if savefolder:
@@ -400,15 +403,23 @@ def apply_darksky(all_data):
 
 def main():
     # Invoke plot.py to replot an existing dataset
+    parser = argparse.ArgumentParser(description='Replot existing data')
+    parser.add_argument('--xaxes', nargs='*',
+                        help='axes to plot')
+    parser.add_argument('--outlier-percentile', metavar='PERCENT', type=float,
+                        help='reject the first and last PERCENT runs as outliers')
+    parser.add_argument('--max-pointing-error', metavar='DEGREES', type=float, default=2,
+                        help='reject observations where abs(rci_azimuth-azimuth) > DEGREES')
+    args = parser.parse_args()
 
     savefolder = None
     if mpl.get_backend().lower() == 'agg':
         savefolder = '.'
 
     all_data = load_data()
-    plot(all_data, savefolder=savefolder)
+    plot(all_data, savefolder=savefolder, **vars(args))
 
-def plot(all_data, savefolder=None):
+def plot(all_data, xaxes=None, outlier_percentile=None, max_pointing_error=2, savefolder=None):
     """Regenerate all default plots for all_data"""
 
     def path(name):
@@ -416,7 +427,21 @@ def plot(all_data, savefolder=None):
             return os.path.join(savefolder, name)
         return None
 
-    has_darksky = 'darksky' in all_data.dtype.fields
+    fields = set(all_data.dtype.names)
+
+    bad_data = np.array([], all_data.dtype)
+    # TODO: This could remove a measurement without its corresponding darksky measurement, or vice versa.
+    if max_pointing_error and fields.issuperset(('azimuth', 'elevation', 'rci_azimuth', 'rci_elevation')):
+        count = len(all_data)
+        cmd_pos = structured_to_unstructured(all_data[['azimuth', 'elevation']])
+        obs_pos = structured_to_unstructured(all_data[['rci_azimuth', 'rci_elevation']])
+        indices = np.linalg.norm(cmd_pos-obs_pos, axis=1) < max_pointing_error
+        bad_data = np.append(bad_data, all_data[~indices])
+        all_data = all_data[indices]
+        if len(all_data) != count:
+            print("Removed %d of %d points with pointing error > %f°" % (count-len(all_data), count, max_pointing_error))
+
+    has_darksky = 'darksky' in fields
     if has_darksky:
         raw_data, calibrated_data, darksky_obs = apply_darksky(all_data)
         # plot average darksky_obs
@@ -424,21 +449,22 @@ def plot(all_data, savefolder=None):
     else:
         raw_data = all_data
 
-    all_axes = set(all_data.dtype.fields.keys())
-    xaxes = all_axes - set('freqs vels data'.split())
-    if 'mode' in all_data.dtype.fields:
-        mode = all_data['mode'][0].decode()
-        if mode == 'az':
-            xaxes = 'number azimuth rci_azimuth'.split()
-        elif mode == 'gal':
-            xaxes = 'number rci_azimuth longitude'.split()
-        elif mode == 'grid':
-            xaxes = 'number rci_azimuth longitude latitude'.split()
-    xaxes = all_axes & set(xaxes)
+    if not xaxes:
+        all_axes = set(all_data.dtype.names)
+        xaxes = all_axes - set('freqs vels data'.split())
+        if 'mode' in all_data.dtype.names:
+            mode = all_data['mode'][0].decode()
+            if mode == 'az':
+                xaxes = 'number azimuth rci_azimuth'.split()
+            elif mode == 'gal':
+                xaxes = 'number rci_azimuth longitude'.split()
+            elif mode == 'grid':
+                xaxes = 'number rci_azimuth longitude latitude'.split()
+        xaxes = all_axes & set(xaxes)
     print("Plotting axes:", xaxes)
 
     yaxis = 'freqs'
-    if 'vels' in all_data.dtype.fields:
+    if 'vels' in all_data.dtype.names:
         yaxis = 'vels'
 
     if not has_darksky:
@@ -461,7 +487,7 @@ def plot(all_data, savefolder=None):
             for row in averaged_data:
                 plot_velocity(row['vels'], row['data'], '%s=%s (n=%d)' % (xaxis, row[xaxis], row['count']), path('%s_%s_averaged_normalized.pdf' % (xaxis, row[xaxis])))
             plot_2d(normalized_data, xaxis, yaxis, normalized='normalized', savefolder=savefolder)
-    plot_observations(all_data, savefolder=savefolder)
+    plot_observations(all_data, bad_data, savefolder=savefolder)
 
 if __name__ == '__main__':
     main()
