@@ -19,6 +19,7 @@ from collections import namedtuple
 import plot
 from astropy.coordinates import SkyCoord
 from astropy import units as u
+from astropy.table import Table
 
 class iterator(object):
     """iterator emits a series of SkyCoord objects that represent observation positions."""
@@ -125,11 +126,6 @@ def run_survey(tb, savefolder, iterator, args, gain=60, int_time=30, darksky_off
     # 'rci_azimuth' and 'rci_elevation' contain the actual azimuth and elevation for the observation
     # all other fields come from pos
     all_data = []
-    # Legacy arrays
-    contour_iter_axes = {field: [] for field in POSITION_FIELDS}
-    contour_freqs = []
-    contour_vels = []
-    contour_data = []
 
     for number, pos in enumerate(iterator):
         for darksky in (False, True):
@@ -153,38 +149,31 @@ def run_survey(tb, savefolder, iterator, args, gain=60, int_time=30, darksky_off
                 'mode': str(args.mode),
                 'number': number,
                 'data': data,
-                'freqs': freq_range.to_value(u.MHz).value,
-                'time': apytime.value,
-                'azimuth': pos_altaz.az.degree,
-                'elevation': pos_altaz.alt.degree,
-                'longitude': pos.galactic.l.degree,
-                'latitude': pos.galactic.b.degree,
-                'ra': pos.icrs.ra.degree,
-                'dec': pos.icrs.dec.degree,
-                'rci_azimuth': tb.client.azimuth_position,
-                'rci_elevation': tb.client.elevation_position,
+                'freqs': freq_range,
+                'time': apytime.value*u.second,
+                'azimuth': pos_altaz.az,
+                'elevation': pos_altaz.alt,
+                'longitude': pos.galactic.l,
+                'latitude': pos.galactic.b,
+                'ra': pos.icrs.ra,
+                'dec': pos.icrs.dec,
+                'rci_azimuth': tb.client.azimuth_position*u.degree,
+                'rci_elevation': tb.client.elevation_position*u.degree,
             }
+            # TODO: When we move to AstroPy 3+ (with Python 3+) we can
+            # just write time, pos and pos_altaz directly to the table.
             if darksky_offset:
                 row['darksky'] = darksky
 
             vel_range = None
             if ref_frequency:
                 vel_range=np.array(freqs_to_vel(ref_frequency, freq_range, pos))
-                row['vels'] = vel_range.to_value(u.km/u.s).value
+                row['vels'] = vel_range
 
             all_data.append(row)
 
             if not darksky:
                 # Only generate legacy data and plots for non-darksky data.
-                for field in POSITION_FIELDS:
-                    contour_iter_axes[field].append(np.full(len(freq_range), row[field]))
-
-                contour_freqs.append(freq_range)
-                if vel_range is not None:
-                    contour_vels.append(vel_range)
-
-                contour_data.append(data)
-
                 apytime.format = 'fits'
                 csvrow = [str(row[x]) for x in POSITION_FIELDS]
                 if vel_range is not None:
@@ -202,20 +191,9 @@ def run_survey(tb, savefolder, iterator, args, gain=60, int_time=30, darksky_off
             print('Data logged.')
             print()
 
-    all_data = dicts2array(all_data)
-    np.save(os.path.join(savefolder, 'all_data.npy'), all_data)
+    all_data = Table(all_data)
 
-    contour_iter_axes = {x: np.array(y) for x, y in contour_iter_axes.items()}
-    contour_freqs = np.array(contour_freqs)
-    contour_data = np.array(contour_data)
-
-    for field, data in contour_iter_axes.items():
-        np.save(os.path.join(savefolder, 'contour_'+field+'.npy'), data)
-    np.save(os.path.join(savefolder, 'contour_data.npy'), contour_data)
-    np.save(os.path.join(savefolder, 'contour_freqs.npy'), contour_freqs)
-    if contour_vels:
-        contour_vels = np.array(contour_vels)
-        np.save(os.path.join(savefolder, 'contour_vels.npy'), contour_vels)
+    plot.save_data(all_data, savefolder)
 
     plot.plot(all_data, savefolder=savefolder)
 
