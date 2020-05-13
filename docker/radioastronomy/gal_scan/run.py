@@ -86,6 +86,10 @@ def main(top_block_cls=radiotelescope, options=None):
     parser = argparse.ArgumentParser(description='Galactic sky scan')
     parser.add_argument('output_dir', metavar='DIRECTORY',
                         help='output directory to write scan results')
+    parser.add_argument('--sdr-frequency', type=float,
+                        help='change SDR frequency')
+    parser.add_argument('--bandwidth', metavar='HZ', type=float,
+                        help='change filter bandwidth')
     parser.add_argument('--int-time', type=int, default=30,
                         help='integration time')
     parser.add_argument('--gain', type=int, default=60,
@@ -132,9 +136,19 @@ def main(top_block_cls=radiotelescope, options=None):
     client = rci.client.Client(client_name='gal_scan')
     client.set_offsets(az_offset, el_offset)
 
+    tbkwargs = {}
+    if args.sdr_frequency:
+        tbkwargs['sdr_frequency'] = args.sdr_frequency
+    if args.bandwidth:
+        if args.bandwidth > 5e6:
+            raise ValueError("bandwidth must be <5e6")
+        tbkwargs['if_bandwidth_1'] = args.bandwidth
+        tbkwargs['integration_bandwidth'] = args.bandwidth / 400
+
     tb = top_block_cls(
         client=client,
         file_sink_path=os.path.join(args.output_dir, 'receive_block_sink'),
+        **tbkwargs
     )
     tb.start()
     print('Receiving ...')

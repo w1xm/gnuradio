@@ -19,6 +19,8 @@ import plot
 from astropy.coordinates import SkyCoord
 from astropy import units as u
 
+HYDROGEN_FREQ = 1420.406e6
+
 class iterator(object):
     """iterator emits a series of SkyCoord objects that represent observation positions."""
     def __init__(self, start, stop, step, **kwargs):
@@ -168,7 +170,7 @@ def run_survey(tb, savefolder, iterator, args, gain=60, int_time=30, darksky_off
 
             vel_range = None
             if 'longitude' in row:
-                vel_range=np.array(freqs_to_vel(freq, freq_range, row['longitude'],row.get('latitude', 0)))
+                vel_range=np.array(freqs_to_vel(HYDROGEN_FREQ/1e6, freq_range, row['longitude'],row.get('latitude', 0)))
                 row['vels'] = vel_range
 
             all_data.append(row)

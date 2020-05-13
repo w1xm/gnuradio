@@ -93,7 +93,7 @@ blocks:
     rotation: 0
     state: enabled
 - name: if_bandwidth_1
-  id: variable
+  id: parameter
   parameters:
     comment: ''
     value: 2e6
@@ -141,7 +141,7 @@ blocks:
     rotation: 0
     state: enabled
 - name: integration_bandwidth
-  id: variable
+  id: parameter
   parameters:
     comment: ''
     value: 5e3
@@ -237,7 +237,7 @@ blocks:
     rotation: 0
     state: enabled
 - name: sdr_frequency
-  id: variable
+  id: parameter
   parameters:
     comment: ''
     value: 1420.406e6
