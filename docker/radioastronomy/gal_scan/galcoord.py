@@ -57,7 +57,7 @@ def freqs_to_vel(center_freq, fs, sc):
     unit_vector = cart_data / cart_data.norm()
     v_proj = v_sun.dot(unit_vector)
 
-    doppler_shift = u.doppler_radio(center_freq*u.MHz)
+    doppler_shift = u.doppler_radio(center_freq)
 
     v_local = fs.to(u.km/u.s, doppler_shift)
     v_bary = v_local + v_to_bary + v_local * v_to_bary / c

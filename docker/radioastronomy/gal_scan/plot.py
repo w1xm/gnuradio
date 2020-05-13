@@ -22,7 +22,7 @@ import numpy as np
 from numpy.polynomial.polynomial import polyfit, polyval
 from numpy.lib.recfunctions import izip_records
 from astropy import units as u
-from astropy.coordinates import Angle
+from astropy.coordinates import Angle, SkyCoord
 from astropy.table import Column, Table
 from astropy.time import Time
 from scipy import ndimage
@@ -395,7 +395,7 @@ def load_data():
         - 'darksky' indicates if the observation was a darksky correction (use 'number' to correlate darksky (False, True))
     """
     try:
-        return Table.read('/tmp/all_data.fits')
+        return Table.read('all_data.fits')
     except IOError:
         # Revert to loading legacy data
         pass
@@ -416,7 +416,7 @@ def load_data():
         dtype = [(x, axes[i].dtype, axes[i].shape[1:]) for i,x in enumerate(axis_names)]
         a = np.array([tuple(x) for x in zip(*axes)], dtype=dtype)
     all_data = Table(a)
-    for field, unit in COLUMN_UNITS:
+    for field, unit in COLUMN_UNITS.items():
         if field in all_data.columns:
             all_data[field].unit = unit
     return all_data
@@ -436,15 +436,28 @@ def apply_darksky(all_data):
     corrected_obs['data'] -= darksky_obs['data']
     return uncorrected_obs, corrected_obs, darksky_obs
 
+def recalculate_vels(all_data):
+    """Replace the vels column with recalculated velocities"""
+
+    import galcoord
+    t = Time(all_data['time'].quantity.value, format='unix')
+    sc = SkyCoord(l=all_data['longitude'].quantity, b=all_data['latitude'].quantity, frame='galactic')
+    all_data['vels'] = galcoord.freqs_to_vel(galcoord.HYDROGEN_FREQ, all_data['freqs'].quantity.T, sc).T
+    return all_data
+
 def main():
     # Invoke plot.py to replot an existing dataset
     parser = argparse.ArgumentParser(description='Replot existing data')
     parser.add_argument('--xaxes', nargs='*',
                         help='axes to plot')
-    parser.add_argument('--outlier-percentile', metavar='PERCENT', type=float,
-                        help='reject the first and last PERCENT runs as outliers')
+    parser.add_argument('--yaxis',
+                        help='yaxis to plot')
+    #parser.add_argument('--outlier-percentile', metavar='PERCENT', type=float,
+    #                    help='reject the first and last PERCENT runs as outliers')
     parser.add_argument('--max-pointing-error', metavar='DEGREES', type=float, default=2,
                         help='reject observations where abs(rci_azimuth-azimuth) > DEGREES')
+    parser.add_argument('--recalculate-velocities', action='store_true',
+                        help='recalculate velocities')
     args = parser.parse_args()
 
     savefolder = None
@@ -461,7 +474,7 @@ def structured_to_unstructured(a):
     """
     return np.stack([a[f] for f in a.dtype.names], axis=1)
 
-def plot(all_data, xaxes=None, outlier_percentile=None, max_pointing_error=2, savefolder=None):
+def plot(all_data, xaxes=None, yaxis=None, outlier_percentile=None, max_pointing_error=2, recalculate_velocities=False, savefolder=None):
     """Regenerate all default plots for all_data"""
 
     def path(name):
@@ -470,6 +483,9 @@ def plot(all_data, xaxes=None, outlier_percentile=None, max_pointing_error=2, sa
         return None
 
     fields = set(all_data.columns)
+
+    if recalculate_velocities:
+        all_data = recalculate_vels(all_data)
 
     # TODO: This could remove a measurement without its corresponding darksky measurement, or vice versa.
     if max_pointing_error and fields.issuperset(('azimuth', 'elevation', 'rci_azimuth', 'rci_elevation')):
@@ -506,9 +522,10 @@ def plot(all_data, xaxes=None, outlier_percentile=None, max_pointing_error=2, sa
         xaxes = all_axes & set(xaxes)
     print("Plotting axes:", xaxes)
 
-    yaxis = 'freqs'
-    if 'vels' in all_data.columns:
-        yaxis = 'vels'
+    if not yaxis:
+        yaxis = 'freqs'
+        if 'vels' in all_data.columns:
+            yaxis = 'vels'
 
     if not has_darksky:
         normalized_data = normalize_data(raw_data)
