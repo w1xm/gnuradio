@@ -23,6 +23,8 @@ from numpy.polynomial.polynomial import polyfit, polyval
 from numpy.lib.recfunctions import izip_records
 from astropy import units as u
 from astropy.coordinates import Angle
+from astropy.table import Column, Table
+from astropy.time import Time
 from scipy import ndimage
 import matplotlib as mpl
 if 'matplotlib.backends' not in sys.modules:
@@ -274,47 +276,37 @@ def normalize_data(all_data, visualize=False):
     all_data['data'] -= correction_matrix
     return all_data
 
-def average_data(all_data, axis_names, velocity_correction=True):
-    """Average data with identical values for axis_names.
+def average_data(all_data, keys, velocity_correction=True):
+    """Average data with identical values for keys.
+
+    Any columns other than {'freqs', 'vels'}+keys will be turned into (min,mean,max) values.
 
     Useful when --repeat is specified to gal_scan.
     """
-    num_samples = all_data['data'].shape[-1]
-    # Find the coordinates that correspond to each row of contour_data
-    coords = all_data[list(axis_names)]
-    uniq_coords = np.unique(coords)
-    uniq_data = np.zeros(
-        uniq_coords.shape,
-        dtype=[
-            ('count', float),
-            ('freqs', float, all_data['freqs'].shape[1:]),
-            ('vels', float, all_data['vels'].shape[1:]),
-            ('data', float, all_data['data'].shape[1:]),
-        ])
-
-    for i, coord in enumerate(uniq_coords):
-        row = uniq_data[i]
-        old_data = all_data[coords[:] == uniq_coords[i]]
-        row['count'] = old_data.shape[0]
-        row['freqs'] = old_data[0]['freqs']
-        row['vels'] = old_data[0]['vels']
-        if velocity_correction:
-            row['data'] = average_point(old_data['data'], old_data['vels'])
+    all_data = all_data.group_by(keys)
+    groups = all_data.groups
+    out_cols = []
+    keep = set(groups.key_colnames) | {'mode', 'freqs', 'vels'}
+    for col in all_data.columns.values():
+        if col.info.name in keep:
+            # Keep columns get passed through
+            new_col = col[groups.indices[:-1]]
+        elif col.info.name == 'data':
+            # Data gets averaged (with optional velocity correction)
+            if velocity_correction:
+                data = [
+                    average_point(group['data'], group['vels'])
+                    for group in groups
+                ]
+                new_col = Column(name='data', data=data)
+            else:
+                new_col = col.groups.aggregate(np.mean)
         else:
-            row['data'] = np.mean(old_data['data'], axis=0)
-
-    merged = merge_matched_arrays([uniq_coords, uniq_data])
-    return merged
-
-def merge_matched_arrays(seqarrays):
-    """merge_matched_arrays takes a sequence of structured arrays and
-    merges them into a single structured array."""
-    seqdata = [a.ravel().__array__() for a in seqarrays]
-    newdtype = []
-    for a in seqarrays:
-        newdtype.extend((name, a.dtype.fields[name][0]) for name in a.dtype.names)
-    return np.fromiter(tuple(izip_records(seqdata)),
-                       dtype=np.dtype(newdtype))
+            new_col = col.groups.aggregate(lambda x: (np.min(x), np.mean(x), np.max(x)))
+        out_cols.append(new_col)
+    out_cols.append(Column(name='count', data=groups.indices[1:]-groups.indices[:-1]))
+    # Turn it back into a Table object
+    return all_data.__class__(out_cols, meta=all_data.meta)
 
 def average_point(scans, vels):
     """Average samples across a run.
@@ -354,11 +346,42 @@ def average_point(scans, vels):
 
     return np.mean(scans_shifted, 0)
 
+# .npy files can't store units; these are the units to apply when
+# saving and loading data.
+COLUMN_UNITS = {
+    'freqs': u.MHz,
+    'vels': u.km/u.s,
+    'time': u.second,
+    'azimuth': u.degree,
+    'elevation': u.degree,
+    'longitude': u.degree,
+    'latitude': u.degree,
+    'ra': u.degree,
+    'dec': u.degree,
+    'rci_azimuth': u.degree,
+    'rci_elevation': u.degree,
+}
+
+# TODO: Switch to QTable when moving to AstroPy 3+ and Python 3+
+
+def save_data(all_data, savefolder):
+    """Save a Table to savefolder.
+
+    Currently, this writes two files:
+        - all_data.fits, compatible with astropy.table.Table.read
+        - all_data.npy, compatible with np.load
+    """
+    for field, unit in COLUMN_UNITS:
+        if field in all_data.columns:
+            all_data[field] = all_data[field].to(unit)
+    all_data.write(os.path.join(savefolder, 'all_data.fits'), overwrite=True)
+    np.save(os.path.join(savefolder, 'all_data.npy'), all_data, allow_pickle=False)
+
 def load_data():
     """Load existing data files.
 
     Returns:
-        np.array containg structs of each observation
+        Table containg information about each observation
         Fields include:
         - 'number' contains the observation number
         - 'data' contains the raw data
@@ -372,34 +395,44 @@ def load_data():
         - 'darksky' indicates if the observation was a darksky correction (use 'number' to correlate darksky (False, True))
     """
     try:
-        return np.load('all_data.npy')
+        return Table.read('/tmp/all_data.fits')
     except IOError:
         # Revert to loading legacy data
         pass
-    axis_names = []
-    axes = []
-    contour_iter_axes = {}
-    for name in glob.glob("contour_*.npy"):
-        key = name.split('_', 1)[1].rsplit('.', 1)[0]
-        axis_names.append(key)
-        data = np.load(name)
-        if key not in ('data', 'freqs', 'vels'):
-            data = data[:,0]
-        axes.append(data)
-    dtype = [(x, axes[i].dtype, axes[i].shape[1:]) for i,x in enumerate(axis_names)]
-    return np.array([tuple(x) for x in zip(*axes)], dtype=dtype)
+    try:
+        a = np.load('all_data.npy')
+    except IOError:
+        # Revert to loading legacy data
+        axis_names = []
+        axes = []
+        contour_iter_axes = {}
+        for name in glob.glob("contour_*.npy"):
+            key = name.split('_', 1)[1].rsplit('.', 1)[0]
+            axis_names.append(key)
+            data = np.load(name)
+            if key not in ('data', 'freqs', 'vels'):
+                data = data[:,0]
+            axes.append(data)
+        dtype = [(x, axes[i].dtype, axes[i].shape[1:]) for i,x in enumerate(axis_names)]
+        a = np.array([tuple(x) for x in zip(*axes)], dtype=dtype)
+    all_data = Table(a)
+    for field, unit in COLUMN_UNITS:
+        if field in all_data.columns:
+            all_data[field].unit = unit
+    return all_data
 
 def apply_darksky(all_data):
     """Apply darksky corrections.
 
-    Assumes that observations are in the same order.
-
     Returns:
         (uncorrected observations, corrected observations, darksky observations)
     """
+    # Keep only observations that have a darksky calibration.
+    all_data = all_data.group_by('number').groups.filter(lambda t, _: len(t) == 2)
+
     darksky_obs = all_data[all_data['darksky']]
     uncorrected_obs = all_data[~all_data['darksky']]
-    corrected_obs = np.array(uncorrected_obs)
+    corrected_obs = all_data.__class__(uncorrected_obs, meta=all_data.meta)
     corrected_obs['data'] -= darksky_obs['data']
     return uncorrected_obs, corrected_obs, darksky_obs
 
@@ -436,17 +469,18 @@ def plot(all_data, xaxes=None, outlier_percentile=None, max_pointing_error=2, sa
             return os.path.join(savefolder, name)
         return None
 
-    fields = set(all_data.dtype.names)
+    fields = set(all_data.columns)
 
-    bad_data = np.array([], all_data.dtype)
     # TODO: This could remove a measurement without its corresponding darksky measurement, or vice versa.
     if max_pointing_error and fields.issuperset(('azimuth', 'elevation', 'rci_azimuth', 'rci_elevation')):
         count = len(all_data)
         cmd_pos = structured_to_unstructured(all_data[['azimuth', 'elevation']])
         obs_pos = structured_to_unstructured(all_data[['rci_azimuth', 'rci_elevation']])
-        indices = np.linalg.norm(cmd_pos-obs_pos, axis=1) < max_pointing_error
-        bad_data = np.append(bad_data, all_data[~indices])
-        all_data = all_data[indices]
+        all_data['bad'] = np.linalg.norm(cmd_pos-obs_pos, axis=1) < max_pointing_error
+
+        # TODO: Just leave the bad rows in all_data and have normalize_data filter them out?
+        bad_data = all_data[~all_data['bad']]
+        all_data = all_data[all_data['bad']]
         if len(all_data) != count:
             print("Removed %d of %d points with pointing error > %f°" % (count-len(all_data), count, max_pointing_error))
 
@@ -459,9 +493,9 @@ def plot(all_data, xaxes=None, outlier_percentile=None, max_pointing_error=2, sa
         raw_data = all_data
 
     if not xaxes:
-        all_axes = set(all_data.dtype.names)
+        all_axes = set(all_data.columns)
         xaxes = all_axes - set('freqs vels data'.split())
-        if 'mode' in all_data.dtype.names:
+        if 'mode' in all_data.columns:
             mode = all_data['mode'][0].decode()
             if mode == 'az':
                 xaxes = 'number azimuth rci_azimuth'.split()
@@ -473,7 +507,7 @@ def plot(all_data, xaxes=None, outlier_percentile=None, max_pointing_error=2, sa
     print("Plotting axes:", xaxes)
 
     yaxis = 'freqs'
-    if 'vels' in all_data.dtype.names:
+    if 'vels' in all_data.columns:
         yaxis = 'vels'
 
     if not has_darksky:

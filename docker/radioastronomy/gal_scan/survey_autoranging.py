@@ -4,6 +4,7 @@ __metaclass__ = type
 
 import matplotlib as mpl
 mpl.use('Agg')
+from galcoord import HYDROGEN_FREQ
 from galcoord import altaz_frame
 from galcoord import freqs_to_vel
 from galcoord import gal_to_altaz
@@ -18,8 +19,6 @@ from collections import namedtuple
 import plot
 from astropy.coordinates import SkyCoord
 from astropy import units as u
-
-HYDROGEN_FREQ = 1420.406e6
 
 class iterator(object):
     """iterator emits a series of SkyCoord objects that represent observation positions."""
@@ -100,10 +99,10 @@ class grid_iterator(iterator):
 
 POSITION_FIELDS = ('time', 'azimuth', 'elevation', 'longitude', 'latitude', 'ra', 'dec', 'rci_azimuth', 'rci_elevation')
 
-def run_survey(tb, savefolder, iterator, args, gain=60, int_time=30, darksky_offset=0):
+def run_survey(tb, savefolder, iterator, args, gain=60, int_time=30, darksky_offset=0, ref_frequency=HYDROGEN_FREQ):
     tb.set_sdr_gain(gain)
-    freq=tb.get_sdr_frequency()/1000000 #MHz
-    freq_offset=tb.get_output_vector_bandwidth()/2000000. #MHz
+    freq=tb.get_sdr_frequency()*u.Hz
+    freq_offset=tb.get_output_vector_bandwidth()*u.Hz/2
     freq_range=np.linspace(freq-freq_offset, freq+freq_offset, tb.get_num_channels())
 
     #########################################
@@ -116,7 +115,7 @@ def run_survey(tb, savefolder, iterator, args, gain=60, int_time=30, darksky_off
     file.write('Original arguments:\n' + str(args))
     file.close()
 
-    csvwriter.writerow(['# Integration time: %d seconds Center frequency: %f MHz' % (int_time, freq)])
+    csvwriter.writerow(['# Integration time: %d seconds Center frequency: %s' % (int_time, freq)])
     freq_count = 2
     csvwriter.writerow(list(POSITION_FIELDS) + [str(f) for f in freq_range]*freq_count)
 
@@ -154,7 +153,7 @@ def run_survey(tb, savefolder, iterator, args, gain=60, int_time=30, darksky_off
                 'mode': str(args.mode),
                 'number': number,
                 'data': data,
-                'freqs': freq_range,
+                'freqs': freq_range.to_value(u.MHz).value,
                 'time': apytime.value,
                 'azimuth': pos_altaz.az.degree,
                 'elevation': pos_altaz.alt.degree,
@@ -169,9 +168,9 @@ def run_survey(tb, savefolder, iterator, args, gain=60, int_time=30, darksky_off
                 row['darksky'] = darksky
 
             vel_range = None
-            if 'longitude' in row:
-                vel_range=np.array(freqs_to_vel(HYDROGEN_FREQ/1e6, freq_range, row['longitude'],row.get('latitude', 0)))
-                row['vels'] = vel_range
+            if ref_frequency:
+                vel_range=np.array(freqs_to_vel(ref_frequency, freq_range, pos))
+                row['vels'] = vel_range.to_value(u.km/u.s).value
 
             all_data.append(row)
 
