@@ -196,21 +196,3 @@ def run_survey(tb, savefolder, iterator, args, gain=60, int_time=30, darksky_off
     plot.save_data(all_data, savefolder)
 
     plot.plot(all_data, savefolder=savefolder)
-
-def dicts2array(dicts):
-    dt_tuples = []
-    for key, value in dicts[0].items():
-        if not isinstance(value, str):
-            value_dtype = np.array([value]).dtype
-            shape = np.array([value]).shape[1:]
-        else:
-            value_dtype = '|S{}'.format(max([len(d[key]) for d in dicts]))
-            shape = ()
-        dt_tuples.append((key, value_dtype, shape))
-    dt = np.dtype(dt_tuples)
-    values = [tuple(d[name] for name in dt.names) for d in dicts]
-    try:
-        return np.array(values, dtype=dt)
-    except ValueError:
-        print(values, dt)
-        raise
