@@ -175,8 +175,6 @@ def plot_2d(all_data, xaxis, yaxis='freqs', normalized=False, savefolder=None):
     # The minimum is selected as the median value in the background portion of the plot.
     # The maximum is the 95th percentile value across the whole plot.
     vmin = np.percentile(contour_data[:, CORRECTION_POLY_POINTS], 50)
-    if not normalized:
-        vmin = max(0.8e-16, vmin)
     vmax = np.percentile(contour_data, 95)
 
     with figure('contour'):
