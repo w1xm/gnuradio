@@ -103,6 +103,7 @@ POSITION_FIELDS = ('time', 'azimuth', 'elevation', 'longitude', 'latitude', 'ra'
 
 def run_survey(tb, savefolder, iterator, args, int_time=30, darksky_offset=0, ref_frequency=HYDROGEN_FREQ):
     freq=tb.get_sdr_frequency()*u.Hz
+    gain=tb.get_sdr_gain()*u.dB
     freq_offset=tb.get_output_vector_bandwidth()*u.Hz/2
     freq_range=np.linspace(freq-freq_offset, freq+freq_offset, tb.get_num_channels())
 
@@ -149,6 +150,7 @@ def run_survey(tb, savefolder, iterator, args, int_time=30, darksky_offset=0, re
             apytime.format = 'unix'
             row = {
                 'mode': str(args.mode),
+                'gain': gain.value, # TODO: AstroPy 3
                 'number': number,
                 'data': data,
                 'freqs': freq_range,

@@ -56,18 +56,6 @@ blocks:
     coordinate: [216, 68]
     rotation: 0
     state: enabled
-- name: if_bandwidth_1
-  id: parameter
-  parameters:
-    comment: ''
-    value: 2e6
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [328, 68]
-    rotation: 0
-    state: enabled
 - name: if_filter_decimation_rate
   id: variable
   parameters:
@@ -198,30 +186,6 @@ blocks:
     bus_source: false
     bus_structure: null
     coordinate: [8, 68]
-    rotation: 0
-    state: enabled
-- name: sdr_frequency
-  id: parameter
-  parameters:
-    comment: ''
-    value: 1420.406e6
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [104, 68]
-    rotation: 0
-    state: enabled
-- name: sdr_gain
-  id: parameter
-  parameters:
-    comment: ''
-    value: '40'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [560, 68]
     rotation: 0
     state: enabled
 - name: sdr_gain_lin
@@ -395,6 +359,23 @@ blocks:
     coordinate: [247, 356]
     rotation: 0
     state: true
+- name: if_bandwidth_1
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: ''
+    short_id: ''
+    type: ''
+    value: 2e6
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [328, 68]
+    rotation: 0
+    state: enabled
 - name: import_0
   id: import
   parameters:
@@ -501,6 +482,40 @@ blocks:
     bus_source: false
     bus_structure: null
     coordinate: [15, 372]
+    rotation: 0
+    state: enabled
+- name: sdr_frequency
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: ''
+    short_id: ''
+    type: ''
+    value: 1420.406e6
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [104, 68]
+    rotation: 0
+    state: enabled
+- name: sdr_gain
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: ''
+    short_id: ''
+    type: ''
+    value: '45'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [560, 68]
     rotation: 0
     state: enabled
 

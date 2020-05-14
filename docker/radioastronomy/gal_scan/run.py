@@ -86,7 +86,7 @@ def main(top_block_cls=radiotelescope, options=None):
                         help='change filter bandwidth')
     parser.add_argument('--int-time', type=int, default=30,
                         help='integration time')
-    parser.add_argument('--gain', type=int, default=40,
+    parser.add_argument('--gain', type=int, default=45,
                         help='SDR gain')
     parser.add_argument('--mode', type=Mode, choices=list(Mode), default=Mode.gal)
     parser.add_argument('--step', type=float, default=2.5,
