@@ -42,7 +42,7 @@ def freqs_to_vel(center_freq, fs, sc):
     Args:
         center_freq: frequency at zero velocity
         fs: Quantity object representing frequencies
-        sc: SkyCoord object representing one or many coordinates
+        sc: SkyCoord object representing one or many coordinates (must have obstime and location set)
     """
 
     # Convert from earth reference frame to solar reference frame using
@@ -50,7 +50,7 @@ def freqs_to_vel(center_freq, fs, sc):
     # Then convert from solar reference frame to Galactic Standard of Rest using
     # https://docs.astropy.org/en/stable/generated/examples/coordinates/rv-to-gsr.html
     pos_gal = sc.galactic
-    v_to_bary = pos_gal.radial_velocity_correction(kind='barycentric', obstime=get_time(), location=radome_observer.location)
+    v_to_bary = pos_gal.radial_velocity_correction(kind='barycentric')
     # Calculate the sun's velocity projected in the observing direction.
     v_sun = Galactocentric().galcen_v_sun.to_cartesian()
     cart_data = pos_gal.data.to_cartesian()

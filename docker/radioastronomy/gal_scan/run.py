@@ -32,19 +32,13 @@ class radiotelescope(flowgraph):
         self.client = client
         self.darksky = None
 
-    def set_recording_enabled(self, enabled):
-        # TODO: Rename block to something more meaningful.
-        self.blocks_copy_0.set_enabled(enabled)
-
     def snapshot(self, int_time): #straight snapshot over a certain integration time.
         print('Snapshot %d sec' % (int_time,))
         self.integration_block.integrate(int_time)
-        self.set_recording_enabled(True) #start copying
         vec = None
         while vec is None:
             time.sleep(1)
             vec = self.integration_block.integrate_results()
-        self.set_recording_enabled(False) #stop copying
         return np.array(vec)
 
     observe = snapshot
@@ -92,7 +86,7 @@ def main(top_block_cls=radiotelescope, options=None):
                         help='change filter bandwidth')
     parser.add_argument('--int-time', type=int, default=30,
                         help='integration time')
-    parser.add_argument('--gain', type=int, default=60,
+    parser.add_argument('--gain', type=int, default=40,
                         help='SDR gain')
     parser.add_argument('--mode', type=Mode, choices=list(Mode), default=Mode.gal)
     parser.add_argument('--step', type=float, default=2.5,
@@ -143,10 +137,10 @@ def main(top_block_cls=radiotelescope, options=None):
         if args.bandwidth > 5e6:
             raise ValueError("bandwidth must be <5e6")
         tbkwargs['if_bandwidth_1'] = args.bandwidth
-        tbkwargs['integration_bandwidth'] = args.bandwidth / 400
 
     tb = top_block_cls(
         client=client,
+        sdr_gain=args.gain,
         file_sink_path=os.path.join(args.output_dir, 'receive_block_sink'),
         **tbkwargs
     )
@@ -156,7 +150,7 @@ def main(top_block_cls=radiotelescope, options=None):
     try:
         band=0
         client.set_band_rx(band, True)
-        survey_autoranging.run_survey(tb, savefolder=args.output_dir, gain=args.gain, int_time=args.int_time, darksky_offset=args.darksky_offset, iterator=iterator, args=args)
+        survey_autoranging.run_survey(tb, savefolder=args.output_dir, int_time=args.int_time, darksky_offset=args.darksky_offset, iterator=iterator, args=args)
         client.set_band_rx(band, False)
         tb.park()
     finally:

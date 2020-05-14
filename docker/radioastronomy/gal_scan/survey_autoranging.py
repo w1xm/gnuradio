@@ -5,6 +5,7 @@ __metaclass__ = type
 import matplotlib as mpl
 mpl.use('Agg')
 from galcoord import HYDROGEN_FREQ
+from galcoord import radome_observer
 from galcoord import altaz_frame
 from galcoord import freqs_to_vel
 from galcoord import gal_to_altaz
@@ -19,7 +20,7 @@ from collections import namedtuple
 import plot
 from astropy.coordinates import SkyCoord
 from astropy import units as u
-from astropy.table import Table
+from astropy.table import Table, Column
 
 class iterator(object):
     """iterator emits a series of SkyCoord objects that represent observation positions."""
@@ -57,20 +58,20 @@ class longitude_iterator(iterator):
         return SkyCoord(l=lon*u.degree, b=0*u.degree, frame='galactic')
 
     def format_filename(self, pos):
-        return 'lon_%05.1f' % (pos['longitude'],)
+        return 'lon_%05.1f' % (pos['longitude'].degree,)
 
     def format_title(self, pos):
-        return 'l=%.1f az=%.1f' % (pos['longitude'], pos['azimuth'])
+        return 'l=%.1f az=%.1f' % (pos['longitude'].degree, pos['azimuth'].degree)
 
 class azimuth_iterator(iterator):
     def translate(self, az):
         return SkyCoord(az=az*u.degree, alt=0*u.degree, frame=altaz_frame())
 
     def format_filename(self, pos):
-        return 'az_%05.1f' % (pos['azimuth'],)
+        return 'az_%05.1f' % (pos['azimuth'].degree,)
 
     def format_title(self, pos):
-        return 'az=%.1f' % (pos['azimuth'],)
+        return 'az=%.1f' % (pos['azimuth'].degree,)
 
 class grid_iterator(iterator):
     def __init__(self, start, stop, step, rotation, rotation_frame, obj_name, lat, lon, **kwargs):
@@ -96,12 +97,11 @@ class grid_iterator(iterator):
         return 'latlon_%05.1f_%05.1f' % (pos['latitude'], pos['longitude'])
 
     def format_title(self, pos):
-        return 'l=%.1f b=%.1f az=%.1f el=%.1f' % (pos['longitude'], pos['latitude'], pos['azimuth'], pos['elevation'])
+        return 'l=%.1f b=%.1f az=%.1f el=%.1f' % (pos['longitude'].degree, pos['latitude'].degree, pos['azimuth'].degree, pos['elevation'].degree)
 
 POSITION_FIELDS = ('time', 'azimuth', 'elevation', 'longitude', 'latitude', 'ra', 'dec', 'rci_azimuth', 'rci_elevation')
 
-def run_survey(tb, savefolder, iterator, args, gain=60, int_time=30, darksky_offset=0, ref_frequency=HYDROGEN_FREQ):
-    tb.set_sdr_gain(gain)
+def run_survey(tb, savefolder, iterator, args, int_time=30, darksky_offset=0, ref_frequency=HYDROGEN_FREQ):
     freq=tb.get_sdr_frequency()*u.Hz
     freq_offset=tb.get_output_vector_bandwidth()*u.Hz/2
     freq_range=np.linspace(freq-freq_offset, freq+freq_offset, tb.get_num_channels())
@@ -132,6 +132,8 @@ def run_survey(tb, savefolder, iterator, args, gain=60, int_time=30, darksky_off
             if darksky and not darksky_offset:
                 continue
             apytime=get_time()
+            pos.obstime = apytime
+            pos.location = radome_observer.location
             pos_altaz = pos.transform_to(altaz_frame(apytime))
             if darksky:
                 pos_altaz = directional_offset_by(pos_altaz, 90*u.degree, darksky_offset*u.degree)
@@ -167,7 +169,7 @@ def run_survey(tb, savefolder, iterator, args, gain=60, int_time=30, darksky_off
 
             vel_range = None
             if ref_frequency:
-                vel_range=np.array(freqs_to_vel(ref_frequency, freq_range, pos))
+                vel_range=freqs_to_vel(ref_frequency, freq_range, pos)
                 row['vels'] = vel_range
 
             all_data.append(row)
@@ -191,8 +193,21 @@ def run_survey(tb, savefolder, iterator, args, gain=60, int_time=30, darksky_off
             print('Data logged.')
             print()
 
-    all_data = Table(all_data)
+    # TODO: When we switch to AstroPy 3+ and Python3+ this just becomes
+    #all_data = QTable(all_data)
+    all_data = dicts2table(all_data)
 
     plot.save_data(all_data, savefolder)
 
     plot.plot(all_data, savefolder=savefolder)
+
+def dicts2table(dicts):
+    columns = []
+    for key, value in dicts[0].items():
+        if isinstance(value, u.Quantity):
+            c = Column(name=key, data=[d[key].value for d in dicts])
+            c.unit = value.unit
+        else:
+            c = Column(name=key, data=[d[key] for d in dicts])
+        columns.append(c)
+    return Table(columns)

@@ -39,9 +39,9 @@ def plot_freq(freq, freq_range, data, title, filename):
     plt.xlabel('Frequency (MHz)')
     plt.ylabel('Power at Feed (W/Hz)')
     if freq:
-        plt.axvline(x=freq, color='black', ls='--')
+        plt.axvline(x=freq.to_value(u.MHz), color='black', ls='--')
     plt.ticklabel_format(useOffset=False)
-    plt.plot(freq_range, data)
+    plt.plot(freq_range.to(u.MHz), data)
     if filename:
         plt.savefig(filename)
         plt.close()
@@ -54,7 +54,7 @@ def plot_velocity(vel_range, data, title, filename):
     plt.ylabel('Power at Feed (W/Hz)')
     plt.axvline(x=0, color='black', ls='--')
     plt.ticklabel_format(useOffset=False)
-    plt.plot(vel_range, data)
+    plt.plot(vel_range.to(u.km/u.s), data)
     if filename:
         plt.savefig(filename)
         plt.close()
@@ -371,9 +371,10 @@ def save_data(all_data, savefolder):
         - all_data.fits, compatible with astropy.table.Table.read
         - all_data.npy, compatible with np.load
     """
-    for field, unit in COLUMN_UNITS:
+    for field, unit in COLUMN_UNITS.items():
         if field in all_data.columns:
-            all_data[field] = all_data[field].to(unit)
+            all_data[field] = all_data[field].to(unit).value
+            all_data[field].unit = unit
     all_data.write(os.path.join(savefolder, 'all_data.fits'), overwrite=True)
     np.save(os.path.join(savefolder, 'all_data.npy'), all_data, allow_pickle=False)
 
@@ -441,7 +442,7 @@ def recalculate_vels(all_data):
 
     import galcoord
     t = Time(all_data['time'].quantity.value, format='unix')
-    sc = SkyCoord(l=all_data['longitude'].quantity, b=all_data['latitude'].quantity, frame='galactic')
+    sc = SkyCoord(l=all_data['longitude'].quantity, b=all_data['latitude'].quantity, obstime=t, frame='galactic')
     all_data['vels'] = galcoord.freqs_to_vel(galcoord.HYDROGEN_FREQ, all_data['freqs'].quantity.T, sc).T
     return all_data
 
