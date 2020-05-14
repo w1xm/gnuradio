@@ -258,7 +258,7 @@ def normalize_data(all_data, visualize=False):
     The returned data represents the estimated observed signal power.
     """
     # Make a copy so we don't modify the original
-    all_data = np.array(all_data)
+    all_data = all_data.copy()
 
     points = CORRECTION_POLY_POINTS
 
