@@ -1,4 +1,4 @@
-FROM w1xm/base
+FROM w1xm/base:python2
 MAINTAINER w1xm-officers@mit.edu
 
 ARG flowgraph=ssb_transceiver.grc

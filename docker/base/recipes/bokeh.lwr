@@ -12,7 +12,10 @@ satisfy:
   rpm: bokeh || python-bokeh
   python: bokeh >= 0.12.6
   pip: bokeh >= 0.12.6
+satisfy@python3:
+  deb: python3-bokeh
+  rpm: bokeh || python3-bokeh
 source: git+https://github.com/bokeh/bokeh.git
 gitbranch: 1.4.0
-make: python setup.py build_ext --library-dirs=$prefix/lib:$prefix/lib64 --install-js
-install: python setup.py install --prefix=$prefix --install-js
+make: python3 setup.py build_ext --library-dirs=$prefix/lib:$prefix/lib64 --install-js
+install: python3 setup.py install --prefix=$prefix --install-js

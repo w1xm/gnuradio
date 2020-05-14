@@ -1,11 +1,5 @@
-FROM pybombs/pybombs-commondeps:2.3.3 AS base
+FROM w1xm/pybombs/pybombs-commondeps AS base
 MAINTAINER w1xm-officers@mit.edu
-
-# Update package lists
-RUN DEBIAN_FRONTEND=noninteractive apt-get update -q
-
-# Update base system
-RUN DEBIAN_FRONTEND=noninteractive apt-get full-upgrade -y
 
 # Install pybombs-related stuff
 ARG makewidth=2
@@ -14,10 +8,6 @@ RUN pybombs config makewidth $makewidth
 
 RUN pybombs recipes update
 
-# Temporary patch until the gr-limesdr recipe is updated
-RUN sed -i 's/master/gr-3.8/' ~/.pybombs/recipes/gr-recipes/gr-limesdr.lwr
-
-RUN pybombs -v install --print-tree apache-thrift && rm -rf /pybombs/src/
 # Needed by uhd
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y python3-mako python3-requests python3-numpy python3-setuptools
 RUN pybombs -v install --print-tree uhd && rm -rf /pybombs/src/
@@ -26,40 +16,24 @@ RUN ln -fs /usr/share/zoneinfo/America/New_York /etc/localtime
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata
 
 # Install dependencies of gnuradio
-# libcodec2-dev enables gr-vocoder
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -y swig3.0 libqt5opengl5-dev libqt5svg5-dev qt5-default pyqt5-dev pyqt5-dev-tools python-pyqt5 python-click-plugins python-pyqtgraph liborc-0.4-dev libgmp-dev libgmp3-dev python-yaml python-gi-dev python-gi-cairo python-gobject-2-dev gobject-introspection gir1.2-gtk-3.0 libqwt-qt5-dev libcodec2-dev
 
-# Force the use of Python 2
-COPY cmake-defaults.txt /pybombs/.pybombs/cmake-defaults.txt
-RUN echo -e '#!/bin/sh\nexec /usr/bin/cmake -C /pybombs/.pybombs/cmake-defaults.txt "$@"' > /pybombs/bin/cmake && chmod +x /pybombs/bin/cmake
+# 20.04 doesn't have pygtk
+RUN sed -Ei '/pygtk/d' ~/.pybombs/recipes/gr-recipes/gnuradio.lwr && \
+    pybombs -v install --print-tree gnuradio && rm -rf /pybombs/src/
 
-RUN pybombs -v install --print-tree gnuradio && rm -rf /pybombs/src/
 RUN pybombs -v install --print-tree limesuite && rm -rf /pybombs/src/
 
-# Use patched gr-limesdr for Python 2
-RUN pybombs config -P gr-limesdr source git+https://github.com/w1xm/gr-limesdr
 RUN pybombs -v install --print-tree gr-limesdr && rm -rf /pybombs/src/
 
-# Some packages such as gr-osmosdr require a newer CMake
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -y wget
-RUN wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | apt-key add -
-RUN echo "deb https://apt.kitware.com/ubuntu/ bionic main" > /etc/apt/sources.list.d/kitware.list
-RUN DEBIAN_FRONTEND=noninteractive apt-get update -q
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -y cmake
-
-# Use patched gr-osmosdr for Python 2
-RUN pybombs config -P gr-osmosdr source git+https://github.com/w1xm/gr-osmosdr
 RUN pybombs -v install --print-tree gr-osmosdr && rm -rf /pybombs/src/
 
 COPY recipes/ /pybombs/.pybombs/recipes/
 
 # Use GR 3.8 gr-bokehgui
 RUN pybombs config -P gr-bokehgui source git+https://github.com/w1xm/gr-bokehgui && pybombs config -P gr-bokehgui gitbranch range_slider
-RUN sed -i 's/pip: dateutil/deb: python-dateutil/' ~/.pybombs/recipes/gr-recipes/dateutil.lwr && sed -i 's/pip: tornado/deb: python-tornado/' ~/.pybombs/recipes/gr-recipes/tornado.lwr
-RUN pip2 install bokeh
-RUN wget -qO - https://deb.nodesource.com/gpgkey/nodesource.gpg.key | apt-key add -
-RUN echo "deb https://deb.nodesource.com/node_10.x bionic main" > /etc/apt/sources.list.d/nodesource.list
-RUN DEBIAN_FRONTEND=noninteractive apt-get update -q
+RUN sed -i 's/pip: dateutil/deb: python3-dateutil/' ~/.pybombs/recipes/gr-recipes/dateutil.lwr && sed -i 's/pip: tornado/deb: python3-tornado/' ~/.pybombs/recipes/gr-recipes/tornado.lwr
+RUN pip3 install bokeh
+
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y python-dateutil python3-dateutil net-tools nodejs
 RUN pybombs -v install --print-tree gr-bokehgui && rm -rf /pybombs/src/
 
@@ -79,10 +53,15 @@ RUN sed -Ei '/^xterm_executable\s*=/c xterm_executable = /usr/bin/xterm' /pybomb
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y alsa-utils pulseaudio-utils libasound2-plugins
 RUN sed -Ei '/enable-shm/c enable-shm = no' /etc/pulse/client.conf
 
+# Fix setup_env.sh to refer to Python 3
+RUN sed -Ei 's/python2\.6/python3/g; s/python2\.7/python3\.8/g' /pybombs/setup_env.sh
+
 RUN echo 'source /pybombs/setup_env.sh && "$@"' > /run.sh
 ENTRYPOINT ["/bin/bash", "/run.sh"]
 
 FROM base AS gui
+
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y wget
 
 # Install sublime text
 RUN wget -qO - https://download.sublimetext.com/sublimehq-pub.gpg | apt-key add -
@@ -91,5 +70,6 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update -q
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y sublime-text
 
 # Install and configure gqrx
-RUN pybombs -v install --print-tree gqrx && rm -rf /pybombs/src/
+RUN sed -Ei '/qt4/d' ~/.pybombs/recipes/gr-recipes/gqrx.lwr && \
+    pybombs -v install --print-tree gqrx && rm -rf /pybombs/src/
 COPY gqrx.conf /root/.config/gqrx/default.conf

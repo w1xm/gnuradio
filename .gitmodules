@@ -1,0 +1,3 @@
+[submodule "docker/pybombs-docker"]
+	path = docker/pybombs-docker
+	url = https://github.com/w1xm/pybombs-docker
