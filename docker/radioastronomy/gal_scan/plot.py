@@ -96,9 +96,8 @@ def find_shift(all_data, axis):
 
         # Remove gap_index rows from the axis and data arrays and prepend those rows.
         gap_index += 1
-        all_data = np.roll(all_data, -gap_index, 0)
-        if diffs[0] > 0:
-            all_data[axis][:gap_index] == 360
+        all_data[axis][gap_index:] -= 360
+        all_data.sort(axis)
     return all_data
 
 def add_colorbar(mappable, unit, normalized):
@@ -447,7 +446,7 @@ def recalculate_vels(all_data):
 
     import galcoord
     t = Time(all_data['time'].quantity.value, format='unix')
-    sc = SkyCoord(l=all_data['longitude'].quantity, b=all_data['latitude'].quantity, obstime=t, frame='galactic')
+    sc = SkyCoord(l=all_data['longitude'].quantity, b=all_data['latitude'].quantity, obstime=t, location=galcoord.radome_observer.location, frame='galactic')
     all_data['vels'] = galcoord.freqs_to_vel(galcoord.HYDROGEN_FREQ, all_data['freqs'].quantity.T, sc).T
     return all_data
 
