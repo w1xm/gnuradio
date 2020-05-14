@@ -188,8 +188,6 @@ def plot_2d(all_data, xaxis, yaxis='freqs', normalized=False, savefolder=None):
         add_colorbar(cntr, normalized)
 
     norm = None
-    if not normalized:
-        norm = colors.LogNorm()
 
     with figure('mesh'):
         # pcolormesh without shading treats x and y as the
