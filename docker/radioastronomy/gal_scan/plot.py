@@ -81,7 +81,8 @@ def find_shift(all_data, axis):
         The input array, possibly shifted to remove a discontinuity.
 
     """
-    all_data = np.sort(all_data, order=axis)
+    all_data = all_data.copy()
+    all_data.sort(axis)
     axis_data = all_data[axis]
     diffs = np.diff(axis_data)
     adiffs = np.abs(diffs)
@@ -100,11 +101,11 @@ def find_shift(all_data, axis):
             all_data[axis][:gap_index] == 360
     return all_data
 
-def add_colorbar(mappable, normalized):
+def add_colorbar(mappable, unit, normalized):
     """Add a colorbar to the plot for mappable."""
     cbar = plt.colorbar(mappable, extend='max')
     cbar_ylabel = 'Estimated signal power' if normalized else 'Power'
-    cbar.ax.set_ylabel(cbar_ylabel+' at feed (%s)' % (cbar.ax.unit,), rotation=-90, va="bottom")
+    cbar.ax.set_ylabel(cbar_ylabel+' at feed (%s)' % (unit,), rotation=-90, va="bottom")
 
 def plot_observations(all_data, bad_data, savefolder=None):
     deg2rad = (2*np.pi)/360
@@ -168,6 +169,7 @@ def plot_2d(all_data, xaxis, yaxis='freqs', normalized=False, savefolder=None):
     all_data = find_shift(all_data, xaxis)
 
     xdata = all_data[xaxis]
+    # TODO: AstroPy 3+ can work on the Quantity instead of the array
     contour_data = all_data['data']
     # Some fields are scalar
     if xdata.shape != contour_data.shape:
@@ -187,7 +189,7 @@ def plot_2d(all_data, xaxis, yaxis='freqs', normalized=False, savefolder=None):
                             100,
                             extend='both',
                             vmin=vmin, vmax=vmax)
-        add_colorbar(cntr, normalized)
+        add_colorbar(cntr, contour_data.unit, normalized)
 
     norm = None
 
@@ -200,14 +202,14 @@ def plot_2d(all_data, xaxis, yaxis='freqs', normalized=False, savefolder=None):
         pcm = plt.pcolormesh(mesh_xdata, mesh_ydata, contour_data,
                              vmin=vmin, vmax=vmax,
                              norm=norm)
-        add_colorbar(pcm, normalized)
+        add_colorbar(pcm, contour_data.unit, normalized)
 
     with figure('mesh_interpolated'):
         pcm = plt.pcolormesh(xdata, ydata, contour_data,
                              vmin=vmin, vmax=vmax,
                              shading='gouraud',
                              norm=norm)
-        add_colorbar(pcm, normalized)
+        add_colorbar(pcm, contour_data.unit, normalized)
 
 def center_mesh_coords(data):
     """Shift coordinates in data by one half step,
@@ -508,7 +510,7 @@ def plot(all_data, xaxes=None, yaxis=None, outlier_percentile=None, max_pointing
     if has_darksky:
         raw_data, calibrated_data, darksky_obs = apply_darksky(all_data)
         # plot average darksky_obs
-        plot_freq(None, darksky_obs[0]['freqs'], np.mean(darksky_obs['data'], axis=0), 'Average Darksky Measurement', path('darksky.pdf'))
+        plot_freq(None, darksky_obs['freqs'].quantity[0], np.mean(darksky_obs['data'].quantity, axis=0), 'Average Darksky Measurement', path('darksky.pdf'))
     else:
         raw_data = all_data
 
