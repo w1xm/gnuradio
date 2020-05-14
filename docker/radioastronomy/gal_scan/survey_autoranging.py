@@ -145,7 +145,7 @@ def run_survey(tb, savefolder, iterator, args, int_time=30, darksky_offset=0, re
             tb.point(pos_altaz.az.degree, pos_altaz.alt.degree)
 
             print("Observing at coordinates "+str(pos)+'.')
-            data=tb.observe(int_time)
+            data=tb.observe(int_time)*(u.mW/u.Hz)
 
             apytime.format = 'unix'
             row = {

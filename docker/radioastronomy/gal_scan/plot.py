@@ -31,17 +31,19 @@ if 'matplotlib.backends' not in sys.modules:
     mpl.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
+from astropy.visualization import quantity_support
+quantity_support()
 
 def plot_freq(freq, freq_range, data, title, filename):
     """Plot a frequency binned figure."""
     plt.figure()
     plt.title(title)
-    plt.xlabel('Frequency (MHz)')
-    plt.ylabel('Power at Feed (W/Hz)')
-    if freq:
-        plt.axvline(x=freq.to_value(u.MHz), color='black', ls='--')
+    plt.xlabel('Frequency (%s)' % (freq_range.unit,))
+    plt.ylabel('Power at Feed (%s)' % (data.unit,))
     plt.ticklabel_format(useOffset=False)
-    plt.plot(freq_range.to(u.MHz), data)
+    plt.plot(freq_range, data)
+    if freq:
+        plt.axvline(x=freq.to_value(freq_range.unit), color='black', ls='--')
     if filename:
         plt.savefig(filename)
         plt.close()
@@ -50,11 +52,11 @@ def plot_velocity(vel_range, data, title, filename):
     """Plot a velocity binned figure."""
     plt.figure()
     plt.title(title)
-    plt.xlabel('Velocity (km/s)')
-    plt.ylabel('Power at Feed (W/Hz)')
+    plt.xlabel('Velocity (%s)' % (vel_range.unit,))
+    plt.ylabel('Power at Feed (%s)' % (data.unit,))
     plt.axvline(x=0, color='black', ls='--')
     plt.ticklabel_format(useOffset=False)
-    plt.plot(vel_range.to(u.km/u.s), data)
+    plt.plot(vel_range, data)
     if filename:
         plt.savefig(filename)
         plt.close()
@@ -102,7 +104,7 @@ def add_colorbar(mappable, normalized):
     """Add a colorbar to the plot for mappable."""
     cbar = plt.colorbar(mappable, extend='max')
     cbar_ylabel = 'Estimated signal power' if normalized else 'Power'
-    cbar.ax.set_ylabel(cbar_ylabel+' at feed (W/Hz)', rotation=-90, va="bottom")
+    cbar.ax.set_ylabel(cbar_ylabel+' at feed (%s)' % (cbar.ax.unit,), rotation=-90, va="bottom")
 
 def plot_observations(all_data, bad_data, savefolder=None):
     deg2rad = (2*np.pi)/360
@@ -142,9 +144,9 @@ def plot_2d(all_data, xaxis, yaxis='freqs', normalized=False, savefolder=None):
     # TODO: Plot both frequency and velocity
     ydata = all_data[yaxis]
     ylabel = {
-        'freqs': 'Frequency (MHz)',
-        'vels': 'Velocity (km/s)',
-    }[yaxis]
+        'freqs': 'Frequency (%s)',
+        'vels': 'Velocity (%s)',
+    }[yaxis] % (all_data[yaxis].unit)
     xlabel = AXIS_NAMES.get(xaxis,xaxis)
     print('Plotting %s vs %s' % (xlabel, ylabel))
     if len(np.unique(all_data[xaxis])) == 1:
@@ -346,6 +348,7 @@ def average_point(scans, vels):
 # saving and loading data.
 COLUMN_UNITS = {
     'freqs': u.MHz,
+    'data': u.mW/u.Hz,
     'vels': u.km/u.s,
     'time': u.second,
     'azimuth': u.degree,
@@ -392,7 +395,11 @@ def load_data():
         - 'darksky' indicates if the observation was a darksky correction (use 'number' to correlate darksky (False, True))
     """
     try:
-        return Table.read('all_data.fits')
+        all_data = Table.read('all_data.fits')
+        for field, unit in COLUMN_UNITS.items():
+            if field in all_data.columns and not all_data[field].unit:
+                all_data[field].unit = unit
+        return all_data
     except IOError:
         # Revert to loading legacy data
         pass
