@@ -2,16 +2,11 @@
 
 set -ex
 
-fwdport=$1
-shift
-
 #server_ip=$(echo "$SSH_CLIENT" | awk '{ print $1 }')
-
-module_base_name=tcp_localhost_$fwdport
 
 export PULSE_SERVER="localhost"
 
-while true; do
+while [ "$#" -gt 0 ]; do
     case "$1" in
 	--new)
 	    socket=$(mktemp --tmpdir pafwd.XXXXXX)
@@ -46,20 +41,23 @@ while true; do
 	    break
 	    ;;
 	*)
-	    break
+	    fwdport=$1
+	    module_base_name=tcp_localhost_$fwdport
 	    ;;
     esac
     shift
 done
-export PULSE_SINK=tunnel-sink.$module_base_name
-export PULSE_SOURCE=tunnel-source.$module_base_name
-python - <<EOF
+if [ -n "$fwdport" ]; then
+    export PULSE_SINK=tunnel-sink.$module_base_name
+    export PULSE_SOURCE=tunnel-source.$module_base_name
+    python - <<EOF
 from pulsectl import Pulse
 with Pulse('start-eme') as pulse:
   pulse.module_load('module-tunnel-sink', 'server=tcp:localhost:$fwdport sink_name=$PULSE_SINK rate=48000')
   pulse.module_load('module-tunnel-source', 'server=tcp:localhost:$fwdport source_name=$PULSE_SOURCE rate=48000')
 EOF
-echo "PulseAudio connected"
+    echo "PulseAudio connected"
+fi
 
 if [ $# -eq 0 ]; then
     exec "$SHELL" -l
