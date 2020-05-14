@@ -20,7 +20,10 @@ import sys
 import os.path
 import numpy as np
 from numpy.polynomial.polynomial import polyfit, polyval
-from numpy.lib.recfunctions import izip_records
+try:
+    from numpy.lib.recfunctions import izip_records
+except ImportError:
+    from numpy.lib.recfunctions import _izip_records as izip_records
 from astropy import units as u
 from astropy.coordinates import Angle, SkyCoord
 from astropy.table import Column, Table
