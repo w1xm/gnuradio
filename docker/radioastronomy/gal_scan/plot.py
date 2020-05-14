@@ -57,9 +57,9 @@ def plot_velocity(vel_range, data, title, filename):
     plt.title(title)
     plt.xlabel('Velocity (%s)' % (vel_range.unit,))
     plt.ylabel('Power at Feed (%s)' % (data.unit,))
-    plt.axvline(x=0, color='black', ls='--')
     plt.ticklabel_format(useOffset=False)
     plt.plot(vel_range, data)
+    plt.axvline(x=0, color='black', ls='--')
     if filename:
         plt.savefig(filename)
         plt.close()
