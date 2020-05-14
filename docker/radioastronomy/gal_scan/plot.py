@@ -517,7 +517,7 @@ def plot(all_data, xaxes=None, yaxis=None, outlier_percentile=None, max_pointing
         all_axes = set(all_data.columns)
         xaxes = all_axes - set('freqs vels data'.split())
         if 'mode' in all_data.columns:
-            mode = all_data['mode'][0].decode()
+            mode = all_data['mode'][0]
             if mode == 'az':
                 xaxes = 'number azimuth rci_azimuth'.split()
             elif mode == 'gal':
