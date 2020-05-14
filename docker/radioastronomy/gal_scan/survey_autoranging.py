@@ -128,80 +128,82 @@ def run_survey(tb, savefolder, iterator, args, int_time=30, darksky_offset=0, re
     # all other fields come from pos
     all_data = []
 
-    for number, pos in enumerate(iterator):
-        for darksky in (False, True):
-            if darksky and not darksky_offset:
-                continue
-            apytime=get_time()
-            pos.obstime = apytime
-            pos.location = radome_observer.location
-            pos_altaz = pos.transform_to(altaz_frame(apytime))
-            if darksky:
-                pos_altaz = directional_offset_by(pos_altaz, 90*u.degree, darksky_offset*u.degree)
-                pos = pos_altaz
-            if pos_altaz.alt < 0:
-                print("Can't observe at %s; target is below the horizon" % pos)
-                continue
-            tb.point(pos_altaz.az.degree, pos_altaz.alt.degree)
+    try:
+        for number, pos in enumerate(iterator):
+            for darksky in (False, True):
+                if darksky and not darksky_offset:
+                    continue
+                apytime=get_time()
+                pos.obstime = apytime
+                pos.location = radome_observer.location
+                pos_altaz = pos.transform_to(altaz_frame(apytime))
+                if darksky:
+                    pos_altaz = directional_offset_by(pos_altaz, 90*u.degree, darksky_offset*u.degree)
+                    pos = pos_altaz
+                if pos_altaz.alt < 0:
+                    print("Can't observe at %s; target is below the horizon" % pos)
+                    continue
+                tb.point(pos_altaz.az.degree, pos_altaz.alt.degree)
 
-            print("Observing at coordinates "+str(pos)+'.')
-            data=tb.observe(int_time)*(u.mW/u.Hz)
+                print("Observing at coordinates "+str(pos)+'.')
+                data=tb.observe(int_time)*(u.mW/u.Hz)
 
-            apytime.format = 'unix'
-            row = {
-                'mode': str(args.mode),
-                'gain': gain.value, # TODO: AstroPy 3
-                'number': number,
-                'data': data,
-                'freqs': freq_range,
-                'time': apytime.value*u.second,
-                'azimuth': pos_altaz.az,
-                'elevation': pos_altaz.alt,
-                'longitude': pos.galactic.l,
-                'latitude': pos.galactic.b,
-                'ra': pos.icrs.ra,
-                'dec': pos.icrs.dec,
-                'rci_azimuth': tb.client.azimuth_position*u.degree,
-                'rci_elevation': tb.client.elevation_position*u.degree,
-            }
-            # TODO: When we move to AstroPy 3+ (with Python 3+) we can
-            # just write time, pos and pos_altaz directly to the table.
-            if darksky_offset:
-                row['darksky'] = darksky
+                apytime.format = 'unix'
+                row = {
+                    'mode': str(args.mode),
+                    'gain': gain.value, # TODO: AstroPy 3
+                    'number': number,
+                    'data': data,
+                    'freqs': freq_range,
+                    'time': apytime.value*u.second,
+                    'azimuth': pos_altaz.az,
+                    'elevation': pos_altaz.alt,
+                    'longitude': pos.galactic.l,
+                    'latitude': pos.galactic.b,
+                    'ra': pos.icrs.ra,
+                    'dec': pos.icrs.dec,
+                    'rci_azimuth': tb.client.azimuth_position*u.degree,
+                    'rci_elevation': tb.client.elevation_position*u.degree,
+                }
+                # TODO: When we move to AstroPy 3+ (with Python 3+) we can
+                # just write time, pos and pos_altaz directly to the table.
+                if darksky_offset:
+                    row['darksky'] = darksky
 
-            vel_range = None
-            if ref_frequency:
-                vel_range=freqs_to_vel(ref_frequency, freq_range, pos)
-                row['vels'] = vel_range
+                vel_range = None
+                if ref_frequency:
+                    vel_range=freqs_to_vel(ref_frequency, freq_range, pos)
+                    row['vels'] = vel_range
 
-            all_data.append(row)
+                all_data.append(row)
 
-            if not darksky:
-                # Only generate legacy data and plots for non-darksky data.
-                apytime.format = 'fits'
-                csvrow = [str(row[x]) for x in POSITION_FIELDS]
-                if vel_range is not None:
-                    csvrow += [str(f) for f in vel_range]
-                csvrow += [str(f) for f in data]
-                csvwriter.writerow(csvrow)
+                if not darksky:
+                    # Only generate legacy data and plots for non-darksky data.
+                    apytime.format = 'fits'
+                    csvrow = [str(row[x]) for x in POSITION_FIELDS]
+                    if vel_range is not None:
+                        csvrow += [str(f) for f in vel_range]
+                    csvrow += [str(f) for f in data]
+                    csvwriter.writerow(csvrow)
 
-                prefix=os.path.join(savefolder, 'observation_%d' % (number))
+                    prefix=os.path.join(savefolder, 'observation_%d' % (number))
 
-                plot.plot_freq(freq, freq_range, data, iterator.format_title(row) + ' ' + str(apytime), prefix+'_freq.pdf')
+                    plot.plot_freq(freq, freq_range, data, iterator.format_title(row) + ' ' + str(apytime), prefix+'_freq.pdf')
 
-                if 'longitude' in row:
-                    plot.plot_velocity(vel_range, data, iterator.format_title(row) + ' '+ str(apytime), prefix+'_vel.pdf')
+                    if 'longitude' in row:
+                        plot.plot_velocity(vel_range, data, iterator.format_title(row) + ' '+ str(apytime), prefix+'_vel.pdf')
 
-            print('Data logged.')
-            print()
+                print('Data logged.')
+                print()
 
-    # TODO: When we switch to AstroPy 3+ and Python3+ this just becomes
-    #all_data = QTable(all_data)
-    all_data = dicts2table(all_data)
+    finally:
+        # TODO: When we switch to AstroPy 3+ and Python3+ this just becomes
+        #all_data = QTable(all_data)
+        all_data = dicts2table(all_data)
 
-    plot.save_data(all_data, savefolder)
+        plot.save_data(all_data, savefolder)
 
-    plot.plot(all_data, savefolder=savefolder)
+        plot.plot(all_data, savefolder=savefolder)
 
 def dicts2table(dicts):
     columns = []
