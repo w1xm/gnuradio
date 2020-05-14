@@ -48,7 +48,7 @@ blocks:
   id: variable
   parameters:
     comment: ''
-    value: 2*if_bandwidth_1+2e5
+    value: 2*output_vector_bandwidth+4.5e6
   states:
     bus_sink: false
     bus_source: false
@@ -156,7 +156,7 @@ blocks:
   id: variable
   parameters:
     comment: ''
-    value: if_bandwidth_1/2+1e5
+    value: output_vector_bandwidth/2+1e5
   states:
     bus_sink: false
     bus_source: false
@@ -180,7 +180,7 @@ blocks:
   id: variable
   parameters:
     comment: ''
-    value: '128'
+    value: '211.67'
   states:
     bus_sink: false
     bus_source: false
@@ -442,8 +442,8 @@ blocks:
     minoutbuf: '0'
     num_channels: num_channels
   states:
-    _io_cache: ('Embedded Python Block', 'blk', [('num_channels', '500')], [('0',
-      'float', 500)], [], 'Embedded Python Block example - a simple multiply const',
+    _io_cache: ('Embedded Python Block', 'blk', [('num_channels', '512')], [('0',
+      'float', 512)], [], 'Embedded Python Block example - a simple multiply const',
       ['num_channels'])
     bus_sink: false
     bus_source: false
