@@ -109,6 +109,8 @@ def main(top_block_cls=radiotelescope, options=None):
                         help='number of times to repeat scan')
     parser.add_argument('--darksky-offset', type=float, default=0,
                         help='degree offset in azimuth to take darksky calibration at')
+    parser.add_argument('--ref', default=False, action='store_true',
+                        help='measure reference level instead')
     args = parser.parse_args()
 
     iterator_cls = {
@@ -149,7 +151,7 @@ def main(top_block_cls=radiotelescope, options=None):
 
     try:
         band=0
-        client.set_band_rx(band, True)
+        client.set_band_rx(band, not args.ref)
         survey_autoranging.run_survey(tb, savefolder=args.output_dir, int_time=args.int_time, darksky_offset=args.darksky_offset, iterator=iterator, args=args)
         client.set_band_rx(band, False)
         tb.park()
