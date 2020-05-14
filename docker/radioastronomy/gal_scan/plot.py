@@ -531,22 +531,23 @@ def plot(all_data, xaxes=None, yaxis=None, outlier_percentile=None, max_pointing
     if not has_darksky:
         normalized_data = normalize_data(raw_data)
 
+    def plot_averaged(data, suffix=''):
+        for i, row in enumerate(data):
+            # TODO: Fix this when we switch to QTable
+            plot_velocity(data['vels'].quantity[i], data['data'].quantity[i], '%s=%s (n=%s)' % (xaxis, row[xaxis], row['count']), path('%s_%s_averaged%s.pdf' % (xaxis, row[xaxis], suffix)))
+
     for xaxis in xaxes:
         averaged_data = average_data(raw_data, [xaxis])
-        for row in averaged_data:
-            plot_velocity(row['vels'], row['data'], '%s=%s (n=%s)' % (xaxis, row[xaxis], row['count']), path('%s_%s_averaged.pdf' % (xaxis, row[xaxis])))
+        plot_averaged(averaged_data)
 
         plot_2d(raw_data, xaxis, yaxis, savefolder=savefolder)
         if has_darksky:
             averaged_data = average_data(calibrated_data, [xaxis])
-            for row in averaged_data:
-                plot_velocity(row['vels'], row['data'], '%s=%s (n=%d)' % (xaxis, row[xaxis], row['count']), path('%s_%s_averaged_calibrated.pdf' % (xaxis, row[xaxis])))
-
+            plot_averaged(averaged_data, '_calibrated')
             plot_2d(calibrated_data, xaxis, yaxis, normalized='calibrated', savefolder=savefolder)
         else:
             averaged_data = average_data(normalized_data, [xaxis])
-            for row in averaged_data:
-                plot_velocity(row['vels'], row['data'], '%s=%s (n=%d)' % (xaxis, row[xaxis], row['count']), path('%s_%s_averaged_normalized.pdf' % (xaxis, row[xaxis])))
+            plot_averaged(averaged_data, '_normalized')
             plot_2d(normalized_data, xaxis, yaxis, normalized='normalized', savefolder=savefolder)
     plot_observations(all_data, bad_data, savefolder=savefolder)
 
