@@ -12,11 +12,17 @@ from astropy.coordinates import GCRS
 from astropy.coordinates import Galactic
 from astropy.coordinates import Galactocentric
 from astropy.coordinates import UnitSphericalRepresentation
+import astropy.coordinates as coord
 from astropy import units as u
 from astropy.constants import c
 from astropy.time import Time
 from astroplan import Observer
 import numpy as np
+
+coord.galactocentric_frame_defaults.set('latest')
+from astroplan import download_IERS_A
+download_IERS_A()
+
 #from astroplan import FixedTarget
 #Mars = FixedTarget.from_name("mars")
 
