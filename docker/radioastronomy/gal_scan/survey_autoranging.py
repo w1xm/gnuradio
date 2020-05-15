@@ -151,7 +151,7 @@ def run_survey(tb, savefolder, iterator, args, int_time=30, darksky_offset=0, re
                 apytime.format = 'unix'
                 row = {
                     'mode': str(args.mode),
-                    'gain': gain.value, # TODO: AstroPy 3
+                    'gain': gain,
                     'number': number,
                     'data': data,
                     'freqs': freq_range,
@@ -198,20 +198,8 @@ def run_survey(tb, savefolder, iterator, args, int_time=30, darksky_offset=0, re
 
     finally:
         # TODO: When we switch to AstroPy 3+ and Python3+ this just becomes
-        #all_data = QTable(all_data)
-        all_data = dicts2table(all_data)
+        all_data = QTable(all_data)
 
         plot.save_data(all_data, savefolder)
 
         plot.plot(all_data, savefolder=savefolder)
-
-def dicts2table(dicts):
-    columns = []
-    for key, value in dicts[0].items():
-        if isinstance(value, u.Quantity):
-            c = Column(name=key, data=[d[key].value for d in dicts])
-            c.unit = value.unit
-        else:
-            c = Column(name=key, data=[d[key] for d in dicts])
-        columns.append(c)
-    return Table(columns)

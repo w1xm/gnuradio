@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """Plotting functions and command.
 
@@ -26,7 +26,7 @@ except ImportError:
     from numpy.lib.recfunctions import _izip_records as izip_records
 from astropy import units as u
 from astropy.coordinates import Angle, SkyCoord
-from astropy.table import Column, Table
+from astropy.table import QTable, Column, ColumnGroups
 from astropy.time import Time
 from scipy import ndimage
 import matplotlib as mpl
@@ -99,7 +99,7 @@ def find_shift(all_data, axis):
 
         # Remove gap_index rows from the axis and data arrays and prepend those rows.
         gap_index += 1
-        all_data[axis][gap_index:] -= 360
+        all_data[axis][gap_index:] -= 360*u.degree
         all_data.sort(axis)
     return all_data
 
@@ -171,7 +171,7 @@ def plot_2d(all_data, xaxis, yaxis='freqs', normalized=False, savefolder=None):
     all_data = find_shift(all_data, xaxis)
 
     xdata = all_data[xaxis]
-    # TODO: AstroPy 3+ can work on the Quantity instead of the array
+
     contour_data = all_data['data']
     # Some fields are scalar
     if xdata.shape != contour_data.shape:
@@ -190,7 +190,7 @@ def plot_2d(all_data, xaxis, yaxis='freqs', normalized=False, savefolder=None):
                                 vmin, vmax),
                             100,
                             extend='both',
-                            vmin=vmin, vmax=vmax)
+                            vmin=vmin.value, vmax=vmax.value)
         add_colorbar(cntr, contour_data.unit, normalized)
 
     norm = None
@@ -202,13 +202,13 @@ def plot_2d(all_data, xaxis, yaxis='freqs', normalized=False, savefolder=None):
         mesh_xdata = center_mesh_coords(xdata)
         mesh_ydata = center_mesh_coords(ydata)
         pcm = plt.pcolormesh(mesh_xdata, mesh_ydata, contour_data,
-                             vmin=vmin, vmax=vmax,
+                             vmin=vmin.value, vmax=vmax.value,
                              norm=norm)
         add_colorbar(pcm, contour_data.unit, normalized)
 
     with figure('mesh_interpolated'):
         pcm = plt.pcolormesh(xdata, ydata, contour_data,
-                             vmin=vmin, vmax=vmax,
+                             vmin=vmin.value, vmax=vmax.value,
                              shading='gouraud',
                              norm=norm)
         add_colorbar(pcm, contour_data.unit, normalized)
@@ -267,6 +267,7 @@ def normalize_data(all_data, visualize=False):
     coefficients = polyfit(points, np.transpose(all_data['data'][:, points]), 1)
 
     correction_matrix = polyval(np.arange(all_data['data'].shape[1]), coefficients)
+    correction_matrix = u.Quantity(correction_matrix, unit=all_data['data'].unit)
 
     if visualize: # visualize correction matrix
         plt.figure()
@@ -287,24 +288,38 @@ def average_data(all_data, keys, velocity_correction=True):
     """
     all_data = all_data.group_by(keys)
     groups = all_data.groups
+    i0s, i1s = groups.indices[:-1], groups.indices[1:]
     out_cols = []
     keep = set(groups.key_colnames) | {'mode', 'freqs', 'vels'}
     for col in all_data.columns.values():
         if col.info.name in keep:
             # Keep columns get passed through
-            new_col = col[groups.indices[:-1]]
+            new_col = col[i0s]
         elif col.info.name == 'data':
             # Data gets averaged (with optional velocity correction)
             if velocity_correction:
-                data = [
+                data = np.vstack(tuple(
                     average_point(group['data'], group['vels'])
                     for group in groups
-                ]
+                ))
                 new_col = Column(name='data', data=data)
             else:
-                new_col = col.groups.aggregate(np.mean)
+                new_col = Column(
+                    name='data',
+                    data=np.add.reduceat(
+                        all_data['data'],
+                        i0s
+                    )/np.diff(groups.indices)
+                )
         else:
-            new_col = col.groups.aggregate(lambda x: (np.min(x), np.mean(x), np.max(x)))
+            minmax = np.stack(
+                [ufunc.reduceat(col, i0s, axis=0)
+                 for ufunc in (np.fmin, np.fmax)],
+                axis=-1,
+            )
+            new_col = Column(
+                name=col.info.name,
+                data=minmax)
         out_cols.append(new_col)
     out_cols.append(Column(name='count', data=groups.indices[1:]-groups.indices[:-1]))
     # Turn it back into a Table object
@@ -346,15 +361,15 @@ def average_point(scans, vels):
 
     scans_shifted = ndimage.map_coordinates(scans, indices)
 
-    return np.mean(scans_shifted, 0)
+    return u.Quantity(np.mean(scans_shifted, 0), unit=scans.unit)
 
 # .npy files can't store units; these are the units to apply when
 # saving and loading data.
 COLUMN_UNITS = {
+    'gain': u.dB,
     'freqs': u.MHz,
     'data': u.mW/u.Hz,
     'vels': u.km/u.s,
-    'time': u.second,
     'azimuth': u.degree,
     'elevation': u.degree,
     'longitude': u.degree,
@@ -365,8 +380,6 @@ COLUMN_UNITS = {
     'rci_elevation': u.degree,
 }
 
-# TODO: Switch to QTable when moving to AstroPy 3+ and Python 3+
-
 def save_data(all_data, savefolder):
     """Save a Table to savefolder.
 
@@ -376,22 +389,25 @@ def save_data(all_data, savefolder):
     """
     for field, unit in COLUMN_UNITS.items():
         if field in all_data.columns:
-            all_data[field] = all_data[field].to(unit).value
-            all_data[field].unit = unit
+            all_data[field] = all_data[field].to(unit)
     all_data.write(os.path.join(savefolder, 'all_data.fits'), overwrite=True)
+    all_data = all_data.copy()
+    # Turn 'time' into a unix timestamp, since np.save would otherwise pickle it.
+    all_data['time'] = all_data['time'].value
+    all_data['time'].unit = u.second
     np.save(os.path.join(savefolder, 'all_data.npy'), all_data, allow_pickle=False)
 
 def load_data():
     """Load existing data files.
 
     Returns:
-        Table containg information about each observation
+        QTable containg information about each observation
         Fields include:
         - 'number' contains the observation number
         - 'data' contains the raw data
         - 'freqs' contains the frequency for each sample
         - 'vels' contains relative velocity for each sample
-        - 'time' contains the observation time
+        - 'time' contains the observation time as a Time object
         - 'rci_azimuth' and 'rci_elevation' contain the actual azimuth and elevation for the observation
         - 'azimuth' and 'elevation' contain the commanded azimuth and elevation
         - 'longitude' and 'latitude' contain the Galactic coordinates
@@ -399,10 +415,13 @@ def load_data():
         - 'darksky' indicates if the observation was a darksky correction (use 'number' to correlate darksky (False, True))
     """
     try:
-        all_data = Table.read('all_data.fits')
+        all_data = QTable.read('all_data.fits')
         for field, unit in COLUMN_UNITS.items():
             if field in all_data.columns and not all_data[field].unit:
                 all_data[field].unit = unit
+        if not isinstance(all_data['time'], Time):
+            # Old FITS files are not marked as times.
+            all_data['time'] = Time(all_data['time'].value, format='unix')
         return all_data
     except IOError:
         # Revert to loading legacy data
@@ -423,7 +442,8 @@ def load_data():
             axes.append(data)
         dtype = [(x, axes[i].dtype, axes[i].shape[1:]) for i,x in enumerate(axis_names)]
         a = np.array([tuple(x) for x in zip(*axes)], dtype=dtype)
-    all_data = Table(a)
+    all_data = QTable(a)
+    all_data['time'] = Time(all_data['time'].value, format='unix')
     for field, unit in COLUMN_UNITS.items():
         if field in all_data.columns:
             all_data[field].unit = unit
@@ -448,9 +468,8 @@ def recalculate_vels(all_data):
     """Replace the vels column with recalculated velocities"""
 
     import galcoord
-    t = Time(all_data['time'].quantity.value, format='unix')
-    sc = SkyCoord(l=all_data['longitude'].quantity, b=all_data['latitude'].quantity, obstime=t, location=galcoord.radome_observer.location, frame='galactic')
-    all_data['vels'] = galcoord.freqs_to_vel(galcoord.HYDROGEN_FREQ, all_data['freqs'].quantity.T, sc).T
+    sc = SkyCoord(l=all_data['longitude'], b=all_data['latitude'], obstime=all_data['time'], location=galcoord.radome_observer.location, frame='galactic')
+    all_data['vels'] = galcoord.freqs_to_vel(galcoord.HYDROGEN_FREQ, all_data['freqs'].T, sc).T
     return all_data
 
 def main():
@@ -462,7 +481,7 @@ def main():
                         help='yaxis to plot')
     #parser.add_argument('--outlier-percentile', metavar='PERCENT', type=float,
     #                    help='reject the first and last PERCENT runs as outliers')
-    parser.add_argument('--max-pointing-error', metavar='DEGREES', type=float, default=2,
+    parser.add_argument('--max-pointing-error', metavar='DEGREES', type=Angle, default=2*u.degree,
                         help='reject observations where abs(rci_azimuth-azimuth) > DEGREES')
     parser.add_argument('--recalculate-velocities', action='store_true',
                         help='recalculate velocities')
@@ -482,7 +501,7 @@ def structured_to_unstructured(a):
     """
     return np.stack([a[f] for f in a.dtype.names], axis=1)
 
-def plot(all_data, xaxes=None, yaxis=None, outlier_percentile=None, max_pointing_error=2, recalculate_velocities=False, savefolder=None):
+def plot(all_data, xaxes=None, yaxis=None, outlier_percentile=None, max_pointing_error=2*u.degree, recalculate_velocities=False, savefolder=None):
     """Regenerate all default plots for all_data"""
 
     def path(name):
@@ -512,7 +531,7 @@ def plot(all_data, xaxes=None, yaxis=None, outlier_percentile=None, max_pointing
     if has_darksky:
         raw_data, calibrated_data, darksky_obs = apply_darksky(all_data)
         # plot average darksky_obs
-        plot_freq(None, darksky_obs['freqs'].quantity[0], np.mean(darksky_obs['data'].quantity, axis=0), 'Average Darksky Measurement', path('darksky.pdf'))
+        plot_freq(None, darksky_obs[0]['freqs'], np.mean(darksky_obs['data'], axis=0), 'Average Darksky Measurement', path('darksky.pdf'))
     else:
         raw_data = all_data
 
@@ -539,9 +558,8 @@ def plot(all_data, xaxes=None, yaxis=None, outlier_percentile=None, max_pointing
         normalized_data = normalize_data(raw_data)
 
     def plot_averaged(data, suffix=''):
-        for i, row in enumerate(data):
-            # TODO: Fix this when we switch to QTable
-            plot_velocity(data['vels'].quantity[i], data['data'].quantity[i], '%s=%s (n=%s)' % (xaxis, row[xaxis], row['count']), path('%s_%s_averaged%s.pdf' % (xaxis, row[xaxis], suffix)))
+        for row in data:
+            plot_velocity(row['vels'], row['data'], '%s=%s (n=%s)' % (xaxis, row[xaxis], row['count']), path('%s_%s_averaged%s.pdf' % (xaxis, row[xaxis], suffix)))
 
     for xaxis in xaxes:
         averaged_data = average_data(raw_data, [xaxis])
