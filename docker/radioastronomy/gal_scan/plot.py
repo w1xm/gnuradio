@@ -28,7 +28,9 @@ from astropy import units as u
 from astropy.coordinates import Angle, Longitude, SkyCoord
 from astropy.table import QTable, Column, ColumnGroups
 from astropy.time import Time
+from astropy.io import fits
 from scipy import ndimage
+from scipy.interpolate import griddata
 import matplotlib as mpl
 if 'matplotlib.backends' not in sys.modules:
     mpl.use('Agg')
@@ -542,6 +544,49 @@ def remove_pointing_error(all_data, max_pointing_error):
             print("Removed %d of %d points with pointing error > %f°" % (count-len(all_data), count, max_pointing_error.to_value(u.degree)))
         return all_data, bad_data
     return all_data, all_data[0:0]
+
+def project_image(all_data, xaxis):
+    """Project an image from all_data into a FITS PrimaryHDU image.
+
+    This image can be written to disk with hdu.writeto("image.fits")
+    and viewed with industry-standard viewers.
+
+    """
+    all_data = find_shift(all_data, xaxis)
+    xmin, xmax, xstep = np.min(all_data[xaxis]), np.max(all_data[xaxis]), 1*u.degree
+    ymin, ymax, ystep = np.min(all_data['vels']), np.max(all_data['vels']), np.abs(all_data['vels'][0,1]-all_data['vels'][0,0])
+
+    grid = np.mgrid[
+        ymin:ymax:ystep,
+        xmin:xmax:xstep
+    ]
+
+    points = np.stack(
+        [
+            np.broadcast_to(
+                all_data[xaxis].value,
+                all_data['vels'].T.shape).T.flatten(),
+            all_data['vels'].value.flatten()
+        ]
+    )
+
+    proj = griddata((points[0], points[1]), all_data['data'].value.flatten(), (grid[1], grid[0]), method='linear')
+
+    fu = lambda unit: u.format.Fits().to_string(unit)
+
+    header = fits.Header()
+    header['BUNIT'] = fu(all_data['data'].unit)
+    header['CTYPE1'] = fu(all_data[xaxis].unit)
+    header['CRPIX1'] = 1
+    header['CRVAL1'] = xmin.value
+    header['CDELT1'] = xstep.value
+    header['CROTA1'] = 0
+    header['CTYPE2'] = fu(all_data['vels'].unit)
+    header['CRPIX2'] = 1
+    header['CRVAL2'] = ymin.value
+    header['CDELT2'] = ystep.value
+    header['CROTA2'] = 0
+    return fits.PrimaryHDU(proj, header)
 
 def plot(all_data, xaxes=None, yaxis=None, skip_1d=False, outlier_percentile=None, max_pointing_error=2*u.degree, recalculate_velocities=False, savefolder=None):
     """Regenerate all default plots for all_data"""
