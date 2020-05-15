@@ -172,7 +172,7 @@ def run_survey(tb, savefolder, iterator, args, int_time=30, darksky_offset=0, re
 
                 vel_range = None
                 if ref_frequency is not None:
-                    vel_range=freqs_to_vel(ref_frequency, freq_range, pos)
+                    vel_range=freqs_to_vel(ref_frequency, freq_range.to(u.MHz), pos)
                     row['vels'] = vel_range
 
                 all_data.append(row)

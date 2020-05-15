@@ -545,6 +545,23 @@ def remove_pointing_error(all_data, max_pointing_error):
         return all_data, bad_data
     return all_data, all_data[0:0]
 
+def plot_interference(all_data, filename=None):
+    """Plot a view of interference across the run.
+
+    Requires that all_data contain a 'max_interference' column; this can be generated as
+
+    all_data['max_interference'] = np.fmax.reduce(all_data['data'], axis=1)
+    """
+    plt.figure()
+    plt.plot(all_data['time'].value, all_data['max_interference'])
+    ax2 = plt.twinx()
+    ax2.plot(all_data['time'].value, all_data['rci_azimuth'])
+    ax3 = plt.twinx()
+    ax3.plot(all_data['time'].value, all_data['rci_elevation'])
+    if filename:
+        plt.savefig(filename)
+        plt.close()
+
 def project_image(all_data, xaxis):
     """Project an image from all_data into a FITS PrimaryHDU image.
 
