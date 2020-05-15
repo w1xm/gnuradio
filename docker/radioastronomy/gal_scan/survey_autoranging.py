@@ -20,7 +20,7 @@ from collections import namedtuple
 import plot
 from astropy.coordinates import SkyCoord
 from astropy import units as u
-from astropy.table import Table, Column
+from astropy.table import QTable, Column
 
 class iterator(object):
     """iterator emits a series of SkyCoord objects that represent observation positions."""
@@ -171,7 +171,7 @@ def run_survey(tb, savefolder, iterator, args, int_time=30, darksky_offset=0, re
                     row['darksky'] = darksky
 
                 vel_range = None
-                if ref_frequency:
+                if ref_frequency is not None:
                     vel_range=freqs_to_vel(ref_frequency, freq_range, pos)
                     row['vels'] = vel_range
 
@@ -197,7 +197,6 @@ def run_survey(tb, savefolder, iterator, args, int_time=30, darksky_offset=0, re
                 print()
 
     finally:
-        # TODO: When we switch to AstroPy 3+ and Python3+ this just becomes
         all_data = QTable(all_data)
 
         plot.save_data(all_data, savefolder)
