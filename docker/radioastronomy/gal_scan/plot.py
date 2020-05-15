@@ -45,7 +45,7 @@ def plot_freq(freq, freq_range, data, title, filename):
     plt.ylabel('Power at Feed (%s)' % (data.unit,))
     plt.ticklabel_format(useOffset=False)
     plt.plot(freq_range, data)
-    if freq:
+    if freq is not None:
         plt.axvline(x=freq.to_value(freq_range.unit), color='black', ls='--')
     if filename:
         plt.savefig(filename)
@@ -87,6 +87,8 @@ def find_shift(all_data, axis):
     all_data = all_data.copy()
     all_data.sort(axis)
     axis_data = all_data[axis]
+    if not axis_data.unit or not axis_data.unit.is_equivalent(u.degree):
+        return all_data
     diffs = np.diff(axis_data)
     adiffs = np.abs(diffs)
     gap_index = adiffs.argmax()
@@ -151,7 +153,7 @@ def plot_2d(all_data, xaxis, yaxis='freqs', normalized=False, savefolder=None):
         'vels': 'Velocity (%s)',
     }[yaxis] % (all_data[yaxis].unit)
     xlabel = AXIS_NAMES.get(xaxis,xaxis)
-    print('Plotting %s vs %s' % (xlabel, ylabel))
+    print('Plotting %s%s vs %s' % ((normalized+' ' if normalized else ''), xlabel, ylabel))
     if len(np.unique(all_data[xaxis])) == 1:
         # 2D plots require multiple points
         print('Skipped due to a single point')
@@ -443,7 +445,7 @@ def load_data():
         dtype = [(x, axes[i].dtype, axes[i].shape[1:]) for i,x in enumerate(axis_names)]
         a = np.array([tuple(x) for x in zip(*axes)], dtype=dtype)
     all_data = QTable(a)
-    all_data['time'] = Time(all_data['time'].value, format='unix')
+    all_data['time'] = Time(all_data['time'], format='unix')
     for field, unit in COLUMN_UNITS.items():
         if field in all_data.columns:
             all_data[field].unit = unit
@@ -485,6 +487,8 @@ def main():
                         help='reject observations where abs(rci_azimuth-azimuth) > DEGREES')
     parser.add_argument('--recalculate-velocities', action='store_true',
                         help='recalculate velocities')
+    parser.add_argument('--skip-1d', action='store_true',
+                        help='skip generating 1D plots')
     args = parser.parse_args()
 
     savefolder = None
@@ -501,7 +505,22 @@ def structured_to_unstructured(a):
     """
     return np.stack([a[f] for f in a.dtype.names], axis=1)
 
-def plot(all_data, xaxes=None, yaxis=None, outlier_percentile=None, max_pointing_error=2*u.degree, recalculate_velocities=False, savefolder=None):
+def remove_pointing_error(all_data, max_pointing_error):
+    if max_pointing_error is not None and set(all_data.colnames).issuperset(('azimuth', 'elevation', 'rci_azimuth', 'rci_elevation')):
+        count = len(all_data)
+        cmd_pos = structured_to_unstructured(all_data[['azimuth', 'elevation']])
+        obs_pos = structured_to_unstructured(all_data[['rci_azimuth', 'rci_elevation']])
+        all_data['bad'] = np.linalg.norm(cmd_pos-obs_pos, axis=1) < max_pointing_error
+
+        # TODO: Just leave the bad rows in all_data and have normalize_data filter them out?
+        bad_data = all_data[~all_data['bad']]
+        all_data = all_data[all_data['bad']]
+        if len(all_data) != count:
+            print("Removed %d of %d points with pointing error > %f°" % (count-len(all_data), count, max_pointing_error.to_value(u.degree)))
+        return all_data, bad_data
+    return all_data, all_data[0:0]
+
+def plot(all_data, xaxes=None, yaxis=None, skip_1d=False, outlier_percentile=None, max_pointing_error=2*u.degree, recalculate_velocities=False, savefolder=None):
     """Regenerate all default plots for all_data"""
 
     def path(name):
@@ -514,21 +533,11 @@ def plot(all_data, xaxes=None, yaxis=None, outlier_percentile=None, max_pointing
     if recalculate_velocities:
         all_data = recalculate_vels(all_data)
 
-    # TODO: This could remove a measurement without its corresponding darksky measurement, or vice versa.
-    if max_pointing_error and fields.issuperset(('azimuth', 'elevation', 'rci_azimuth', 'rci_elevation')):
-        count = len(all_data)
-        cmd_pos = structured_to_unstructured(all_data[['azimuth', 'elevation']])
-        obs_pos = structured_to_unstructured(all_data[['rci_azimuth', 'rci_elevation']])
-        all_data['bad'] = np.linalg.norm(cmd_pos-obs_pos, axis=1) < max_pointing_error
-
-        # TODO: Just leave the bad rows in all_data and have normalize_data filter them out?
-        bad_data = all_data[~all_data['bad']]
-        all_data = all_data[all_data['bad']]
-        if len(all_data) != count:
-            print("Removed %d of %d points with pointing error > %f°" % (count-len(all_data), count, max_pointing_error))
+    all_data, bad_data = remove_pointing_error(all_data, max_pointing_error)
 
     has_darksky = 'darksky' in fields
     if has_darksky:
+        print('Applying darksky calibrations')
         raw_data, calibrated_data, darksky_obs = apply_darksky(all_data)
         # plot average darksky_obs
         plot_freq(None, darksky_obs[0]['freqs'], np.mean(darksky_obs['data'], axis=0), 'Average Darksky Measurement', path('darksky.pdf'))
@@ -558,11 +567,16 @@ def plot(all_data, xaxes=None, yaxis=None, outlier_percentile=None, max_pointing
         normalized_data = normalize_data(raw_data)
 
     def plot_averaged(data, suffix=''):
-        for row in data:
-            plot_velocity(row['vels'], row['data'], '%s=%s (n=%s)' % (xaxis, row[xaxis], row['count']), path('%s_%s_averaged%s.pdf' % (xaxis, row[xaxis], suffix)))
+        if not skip_1d:
+            for row in data:
+                plot_velocity(row['vels'],
+                              row['data'],
+                              '%s=%s (n=%s)' % (xaxis, row[xaxis], row['count']),
+                              path('%s_%s_averaged%s.pdf' % (xaxis, row[xaxis], suffix)))
 
     for xaxis in xaxes:
         averaged_data = average_data(raw_data, [xaxis])
+        print("Plotting 1D averaged %s" % (xaxis,))
         plot_averaged(averaged_data)
 
         plot_2d(raw_data, xaxis, yaxis, savefolder=savefolder)
@@ -578,4 +592,3 @@ def plot(all_data, xaxes=None, yaxis=None, outlier_percentile=None, max_pointing
 
 if __name__ == '__main__':
     main()
-    plt.show()
