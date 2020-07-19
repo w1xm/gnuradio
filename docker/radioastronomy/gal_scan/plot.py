@@ -180,13 +180,14 @@ def plot_2d(all_data, xaxis, yaxis='freqs', normalized=False, cmap=TURBO_CMAP, s
         return
     @contextmanager
     def figure(name):
-        fig = plt.figure()
+        figsize = plt.figaspect(.5)
+        fig = plt.figure(figsize=figsize)
         plt.xlabel(xlabel)
         plt.ylabel(ylabel)
         plt.ticklabel_format(useOffset=False)
         yield fig
         if savefolder:
-            plt.savefig(os.path.join(savefolder, '2d_'+xaxis+'_'+name+suffix+'.pdf'))
+            plt.savefig(os.path.join(savefolder, '2d_'+xaxis+'_'+name+suffix+'.png'), bbox_inches='tight')
             plt.close()
 
     suffix = ('_'+normalized) if normalized else ''
@@ -470,7 +471,8 @@ def load_data(savefolder='.'):
         dtype = [(x, axes[i].dtype, axes[i].shape[1:]) for i,x in enumerate(axis_names)]
         a = np.array([tuple(x) for x in zip(*axes)], dtype=dtype)
     all_data = QTable(a)
-    all_data['time'] = Time(all_data['time'], format='unix')
+    if 'time' in all_data.colnames:
+        all_data['time'] = Time(all_data['time'], format='unix')
     for field, unit in COLUMN_UNITS.items():
         if field in all_data.columns:
             all_data[field].unit = unit
@@ -552,12 +554,21 @@ def plot_interference(all_data, filename=None):
 
     all_data['max_interference'] = np.fmax.reduce(all_data['data'], axis=1)
     """
-    plt.figure()
-    plt.plot(all_data['time'].value, all_data['max_interference'])
-    ax2 = plt.twinx()
-    ax2.plot(all_data['time'].value, all_data['rci_azimuth'])
-    ax3 = plt.twinx()
-    ax3.plot(all_data['time'].value, all_data['rci_elevation'])
+    t = mpl.dates.date2num(all_data['time'].replicate('datetime').value)#.replicate('mjd')
+    fig, ax1 = plt.subplots()
+    fig.subplots_adjust(right=0.8)
+    p1, = ax1.plot_date(t, all_data['max_interference'], 'k-', label='Interference', lw=0.5)
+    ax1.set_ylabel('Interference (%s)' % (all_data['max_interference'].unit))
+    ax2 = ax1.twinx()
+    p2, = ax2.plot_date(t, all_data['rci_azimuth'], 'c-', label='Azimuth', lw=0.5)
+    ax2.set_ylabel('Azimuth (%s)' % (all_data['rci_azimuth'].unit))
+    ax3 = ax1.twinx()
+    ax3.spines['right'].set_position(('axes', 1.1))
+    p3, = ax3.plot_date(t, all_data['rci_elevation'], 'm-', label='Elevation', lw=0.5)
+    ax3.set_ylabel('Elevation (%s)' % (all_data['rci_elevation'].unit))
+    ax2.tick_params(axis='y', colors=p2.get_color())
+    ax3.tick_params(axis='y', colors=p3.get_color())
+    fig.autofmt_xdate()
     if filename:
         plt.savefig(filename)
         plt.close()
@@ -660,7 +671,7 @@ def plot(all_data, xaxes=None, yaxis=None, skip_1d=False, outlier_percentile=Non
                               path('%s_%s_averaged%s.pdf' % (xaxis, row[xaxis], suffix)))
 
     for xaxis in xaxes:
-        averaged_data = average_data(raw_data, [xaxis])
+        averaged_data = average_data(find_shift(raw_data, xaxis), [xaxis])
         print("Plotting 1D averaged %s" % (xaxis,))
         plot_averaged(averaged_data)
 
