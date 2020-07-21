@@ -16,9 +16,11 @@ RUN git clone https://github.com/w1xm/shinysdr/ /tmp/shinysdr && \
     python3 setup.py build && \
     python3 setup.py install
 
+RUN adduser --system --shell /bin/bash shinysdr
+
 RUN mkdir /config
 COPY config.py /config
 
 EXPOSE 8080 8081
 
-CMD shinysdr /config
+CMD su shinysdr - -c "shinysdr /config"
