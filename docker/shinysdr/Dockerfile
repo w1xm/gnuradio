@@ -9,17 +9,16 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -y \
     git wget \
     python3-twisted python3-txws python3-ephem python3-serial python3-service-identity
 
-RUN git clone -b flightradar24 https://github.com/w1xm/shinysdr/ /tmp/shinysdr && \
+RUN git clone https://github.com/w1xm/shinysdr/ /tmp/shinysdr && \
     cd /tmp/shinysdr && \
-    ./fetch-js-deps.sh && \
-    python setup.py build && \
-    python setup.py install
+    . /pybombs/setup_env.sh && \
+    python3 setup.py fetch_deps && \
+    python3 setup.py build && \
+    python3 setup.py install
 
 RUN mkdir /config
 COPY config.py /config
 
 EXPOSE 8080 8081
 
-ENTRYPOINT ["shinysdr", "/config"]
-
-CMD /flowgraph/run.py
+CMD shinysdr /config
