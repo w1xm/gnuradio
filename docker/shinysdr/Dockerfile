@@ -25,8 +25,11 @@ RUN sed -Ei '/qt4/d' ~/.pybombs/recipes/gr-recipes/gr-air-modes.lwr && \
 # PSK31, RTTY (don't support GR 3.8)
 # WSPR (needs wsprd)
 
+ARG revision=master
+
 RUN git clone https://github.com/w1xm/shinysdr/ /tmp/shinysdr && \
     cd /tmp/shinysdr && \
+    git checkout $revision && \
     . /pybombs/setup_env.sh && \
     python3 setup.py fetch_deps && \
     python3 setup.py build && \
