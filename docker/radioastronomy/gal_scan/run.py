@@ -11,8 +11,6 @@ import time
 from enum import Enum
 import survey_autoranging
 
-VELOCITY_QUIESCENT = 0.2 # degrees/second
-
 ##################################################
 ##################################################
 ##################################################
@@ -59,7 +57,7 @@ class radiotelescope(flowgraph):
                 # Ignore elevation overvelocity
                 print('Elevation overvelocity shutdown. Resetting.')
                 self.client.i_know_what_i_am_doing_unsafe_exit_shutdown()
-            elif status.get("CommandAzFlags") == 'POSITION' and status.get("CommandElFlags") == 'POSITION' and abs(self.client.azimuth_velocity) < VELOCITY_QUIESCENT and abs(self.client.elevation_velocity) < VELOCITY_QUIESCENT:
+            elif status.Get("Moving"):
                 return
             print('Still moving, current position (%g, %g).' % (self.client.azimuth_position, self.client.elevation_position))
 
