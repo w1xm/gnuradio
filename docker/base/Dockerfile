@@ -31,12 +31,11 @@ COPY recipes/ /pybombs/.pybombs/recipes/
 
 # Use GR 3.8 gr-bokehgui
 ARG bokehgui_rev=w1xm
-RUN pybombs config -P gr-bokehgui source git+https://github.com/w1xm/gr-bokehgui && pybombs config -P gr-bokehgui gitrev $bokehgui_rev
-RUN sed -i 's/pip: dateutil/deb: python3-dateutil/' ~/.pybombs/recipes/gr-recipes/dateutil.lwr && sed -i 's/pip: tornado/deb: python3-tornado/' ~/.pybombs/recipes/gr-recipes/tornado.lwr
-RUN pip3 install bokeh
-
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -y python-dateutil python3-dateutil net-tools nodejs
-RUN pybombs -v install --print-tree gr-bokehgui && rm -rf /pybombs/src/
+RUN pybombs config -P gr-bokehgui source git+https://github.com/w1xm/gr-bokehgui && pybombs config -P gr-bokehgui gitrev $bokehgui_rev && \
+    sed -i 's/pip: dateutil/deb: python3-dateutil/' ~/.pybombs/recipes/gr-recipes/dateutil.lwr && sed -i 's/pip: tornado/deb: python3-tornado/' ~/.pybombs/recipes/gr-recipes/tornado.lwr && \
+    pip3 install bokeh && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y python-dateutil python3-dateutil net-tools nodejs && \
+    pybombs -v install --print-tree gr-bokehgui && rm -rf /pybombs/src/
 
 # TODO: Uncomment when gr-linrad supports 3.8
 #RUN pybombs -r /recipes/ install gr-linrad && rm -rf /pybombs/src/
@@ -48,12 +47,12 @@ ARG rci_rev=master
 RUN pip install 'git+https://github.com/w1xm/rci_interface.git@'$rci_rev'#egg=rci&subdirectory=client'
 
 # Install xterm and configure grc to use it.
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -y xterm
-RUN sed -Ei '/^xterm_executable\s*=/c xterm_executable = /usr/bin/xterm' /pybombs/etc/gnuradio/conf.d/grc.conf
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y xterm && \
+    sed -Ei '/^xterm_executable\s*=/c xterm_executable = /usr/bin/xterm' /pybombs/etc/gnuradio/conf.d/grc.conf
 
 # Install sound packages for aplay and friends.
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -y alsa-utils pulseaudio-utils libasound2-plugins
-RUN sed -Ei '/enable-shm/c enable-shm = no' /etc/pulse/client.conf
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y alsa-utils pulseaudio-utils libasound2-plugins && \
+    sed -Ei '/enable-shm/c enable-shm = no' /etc/pulse/client.conf
 
 # Fix setup_env.sh to refer to Python 3
 RUN sed -Ei 's/python2\.6/python3/g; s/python2\.7/python3\.8/g' /pybombs/setup_env.sh
