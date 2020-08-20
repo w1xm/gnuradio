@@ -14,6 +14,6 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -y \
 COPY flowgraph.grc /src/
 WORKDIR /flowgraph/
 RUN . /pybombs/setup_env.sh && grcc -o /flowgraph /src/flowgraph.grc
-COPY *.py /flowgraph/
+COPY *.py *.ts /flowgraph/
 
 CMD /flowgraph/run.py

@@ -3,8 +3,8 @@
 #gives the aziumuth and elevation for galactic coordinates
 #position is the MIT radome
 from astropy.utils import iers
-iers.conf.iers_auto_url = "ftp://cddis.gsfc.nasa.gov/pub/products/iers/finals2000A.all"
-#"https://datacenter.iers.org/data/9/finals2000A.all"
+#iers.conf.iers_auto_url = "ftp://cddis.gsfc.nasa.gov/pub/products/iers/finals2000A.all"
+iers.conf.iers_auto_url = "https://datacenter.iers.org/data/9/finals2000A.all"
 from astropy.coordinates import SkyCoord
 from astropy.coordinates import Angle
 from astropy.coordinates import ICRS

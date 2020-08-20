@@ -2,6 +2,8 @@
 
 from bokeh.application.application import Application
 from bokeh.application.handlers.handler import Handler
+from bokeh.layouts import column, row
+from bokeh.models import Slider, TextInput
 from bokeh.server.server import Server
 from bokeh.plotting import curdoc
 from gnuradio import gr, blocks
@@ -10,6 +12,7 @@ import numpy as np
 import socket
 import rci.client
 import run
+from bokeh_models import Skymap
 
 class SessionHandler(Handler):
     def __init__(self):
@@ -60,8 +63,23 @@ class SessionHandler(Handler):
         plot.set_layout(1,0)
         plot.enable_max_hold()
         plot.format_line(0, "blue", 1, "solid", None, 1.0)
-        layout_t = bokehgui.bokeh_layout.create_layout([plot], "fixed")
-        doc.add_root(layout_t)
+
+        gain = Slider(title="gain", value=self.tb.get_sdr_gain(), start=0, end=65)
+        gain.on_change('value', lambda name, old, new: self.tb.set_sdr_gain(new))
+
+        controls = column(gain)
+
+        skymap = Skymap(height=600, sizing_mode="stretch_height")
+
+        doc.add_root(
+            row(
+                column(
+                    skymap,
+                    plot.get_figure(),
+                ),
+                controls,
+            ),
+        )
 
 if __name__ == '__main__':
     server = Server(
