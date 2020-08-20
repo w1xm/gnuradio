@@ -55,6 +55,7 @@ class SessionHandler(Handler):
         plot = bokehgui.vec_sink_f(doc, plot_lst, self.sinks[doc.session_context.id], is_message =False)
 
         plot.initialize(update_time = 100, legend_list = [''])
+        plot.get_figure().aspect_ratio = 2
         plot.set_y_axis([0, 10])
         plot.set_y_label("Power at feed (aW / Hz)")
         plot.set_x_label("Frequency (MHz)")

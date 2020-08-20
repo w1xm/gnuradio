@@ -182,14 +182,16 @@ export class SkymapView extends LayoutDOMView {
     // // event, we can process the new data
     // this.connect(this.model.properties.azel.change, () => this.updateAzel(this._pointerStatus, this.model.azel))
     // this.connect(this.model.targetAzel.change, () => this.updateAzel(this._pointerTarget, this.model.targetAzel))
-    this.connect(this.model.change, () => {
-      const latlon = this.model.latlon
-      this._planetarium.setLatitude(latlon[0])
-      this._planetarium.setLongitude(latlon[1])
-      this._planetarium.advanceTime()
-      this.updateAzel(this._pointerStatus, this.model.azel)
-      this.updateAzel(this._pointerTarget, this.model.targetAzel)
-    })
+    this.connect(this.model.change, this._on_change)
+  }
+
+  private _on_change(): void {
+    const latlon = this.model.latlon
+    this._planetarium.setLatitude(latlon[0])
+    this._planetarium.setLongitude(latlon[1])
+    this._planetarium.advanceTime()
+    this.updateAzel(this._pointerStatus, this.model.azel)
+    this.updateAzel(this._pointerTarget, this.model.targetAzel)
   }
 
   get child_models(): LayoutDOM[] {
@@ -199,6 +201,7 @@ export class SkymapView extends LayoutDOMView {
   _update_layout(): void {
     this.layout = new LayoutItem()
     this.layout.set_sizing(this.box_sizing())
+    this._on_change()
     this._planetarium.resize()
   }
 }
