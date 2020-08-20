@@ -57,7 +57,7 @@ class radiotelescope(flowgraph):
                 # Ignore elevation overvelocity
                 print('Elevation overvelocity shutdown. Resetting.')
                 self.client.i_know_what_i_am_doing_unsafe_exit_shutdown()
-            elif status.Get("Moving"):
+            elif not status.get("Moving"):
                 return
             print('Still moving, current position (%g, %g).' % (self.client.azimuth_position, self.client.elevation_position))
 
