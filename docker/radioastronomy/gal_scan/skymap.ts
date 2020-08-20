@@ -199,6 +199,7 @@ export class SkymapView extends LayoutDOMView {
   _update_layout(): void {
     this.layout = new LayoutItem()
     this.layout.set_sizing(this.box_sizing())
+    this._planetarium.resize()
   }
 }
 

@@ -81,6 +81,17 @@ class SessionHandler(Handler):
             ),
         )
 
+        async def update_status():
+            status = self.client.status
+            skymap.latlon = (status['Latitude'], status['Longitude'])
+            skymap.azel = (status['AzPos'], status['ElPos'])
+            if status['CommandAzFlags'] == 'POSITION' or status['CommandElFlags'] == 'POSITION':
+                skymap.targetAzel = (status['CommandAzPos'], status['CommandElPos'])
+            else:
+                skymap.targetAzel = None
+
+        doc.add_periodic_callback(update_status, 200)
+
 if __name__ == '__main__':
     server = Server(
         {'/': Application(SessionHandler())},
