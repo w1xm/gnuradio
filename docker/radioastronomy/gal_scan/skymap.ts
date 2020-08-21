@@ -1,6 +1,7 @@
 // -*- mode: typescript; typescript-indent-level: 2 -*-
 import {LayoutDOM, LayoutDOMView} from "models/layouts/layout_dom"
 import {LayoutItem} from "core/layout"
+import {Tap} from "core/bokeh_events"
 import * as p from "core/properties"
 
 declare namespace S {
@@ -76,6 +77,7 @@ export class SkymapView extends LayoutDOMView {
 
     this.el.id = "skymap-" + this.model.id
 
+    const view = this;
     this._planetarium = S.virtualsky({
       'id': this.el.id,
       'projection': 'stereo',
@@ -94,9 +96,7 @@ export class SkymapView extends LayoutDOMView {
 	  const az = azel[0]/this.d2r+this.az_off
 	  const el = azel[1]/this.d2r
 	  console.log(az, el)
-	  //if (scope.click) {
-	  //  scope.click({'$event': e})
-	  //}
+	  view.click(e, [az, el])
 	},
       },
     })
@@ -203,6 +203,10 @@ export class SkymapView extends LayoutDOMView {
     this.layout.set_sizing(this.box_sizing())
     this._on_change()
     this._planetarium.resize()
+  }
+
+  click(e: S.event, azel: [number, number]): void {
+    this.model.trigger_event(new Tap(e.x, e.y, azel[0], azel[1]))
   }
 }
 

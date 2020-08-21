@@ -2,6 +2,7 @@
 
 from bokeh.application.application import Application
 from bokeh.application.handlers.handler import Handler
+from bokeh.events import Tap
 from bokeh.layouts import column, row
 from bokeh.models import Slider, TextInput
 from bokeh.server.server import Server
@@ -71,6 +72,11 @@ class SessionHandler(Handler):
         controls = column(gain)
 
         skymap = Skymap(height=600, sizing_mode="stretch_height")
+        def on_tap(event):
+            # TODO: Dispatch self.tb.point on the execution thread instead
+            self.client.set_azimuth_position(event.x)
+            self.client.set_elevation_position(event.y)
+        skymap.on_event(Tap, on_tap)
 
         doc.add_root(
             row(
