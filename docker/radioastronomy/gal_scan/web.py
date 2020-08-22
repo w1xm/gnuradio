@@ -4,7 +4,7 @@ from bokeh.application.application import Application
 from bokeh.application.handlers.handler import Handler
 from bokeh.events import Tap
 from bokeh.layouts import column, row
-from bokeh.models import ColumnDataSource, Slider, TextInput, DataTable, TableColumn, Panel, Tabs
+from bokeh.models import ColumnDataSource, Slider, TextInput, DataTable, TableColumn, Panel, Tabs, Toggle
 from bokeh.server.server import Server
 from bokeh.plotting import curdoc
 from bokeh.util import logconfig
@@ -114,9 +114,6 @@ class SessionHandler(Handler):
         azimuth = Knob(title="Azimuth", max=360, min=0, unit="°")
         elevation = Knob(title="Elevation", max=360, min=0, unit="°")
 
-        gain = Slider(title="gain", value=self.tb.get_sdr_gain(), start=0, end=65)
-        gain.on_change('value', lambda name, old, new: self.tb.set_sdr_gain(new))
-
         # TODO: Automatically sort by asctime descending
         # TODO: Autoscale columns
         log_table = DataTable(
@@ -131,7 +128,18 @@ class SessionHandler(Handler):
             sortable=True,
         )
 
-        manual = Panel(title="Manual", child=column(gain))
+        gain = Slider(title="gain", value=self.tb.get_sdr_gain(), start=0, end=65)
+        gain.on_change('value', lambda name, old, new: self.tb.set_sdr_gain(new))
+
+        rx = Toggle(label="RX enabled")
+        def on_rx(new):
+            # TODO: Dispatch
+            self.client.set_band_rx(0, new)
+        rx.on_click(on_rx)
+
+        manual = Panel(title="Manual", child=column(
+            row(rx, gain),
+        ))
         automated = Panel(title="Automated", child=column())
 
         controls = column(
@@ -157,7 +165,7 @@ class SessionHandler(Handler):
             ),
         )
 
-        async def update_status():
+        async def update_status(last_status={}):
             status = self.client.status
             skymap.latlon = (status['Latitude'], status['Longitude'])
             skymap.azel = (status['AzPos'], status['ElPos'])
@@ -167,6 +175,16 @@ class SessionHandler(Handler):
                 skymap.targetAzel = None
             azimuth.value = status['AzPos']
             elevation.value = status['ElPos']
+            rx_active = status['Sequencer']['Bands'][0]['CommandRX']
+            if not last_status or rx_active != last_status['Sequencer']['Bands'][0]['CommandRX']:
+                if rx_active:
+                    logging.info("RX enabled")
+                    rx.label = "RX enabled"
+                else:
+                    logging.info("RX disabled (50Ω load)")
+                    rx.label = "RX disabled (50Ω load)"
+                rx.active = rx_active
+            last_status.update(status)
 
         doc.add_periodic_callback(update_status, 200)
 
