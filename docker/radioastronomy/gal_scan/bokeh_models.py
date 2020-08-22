@@ -1,7 +1,18 @@
-from bokeh.core.properties import Angle, Tuple
+from bokeh.core.properties import Angle, Tuple, Bool, Int, Float, String
 from bokeh.io import show
-from bokeh.models import ColumnDataSource, LayoutDOM
+from bokeh.model import Model
+from bokeh.models import ColumnDataSource, LayoutDOM, HTMLBox
+import bokeh.util.compiler
 from bokeh.util.compiler import TypeScript
+
+# Fix bug in nodejs_compile:
+old_nodejs_compile = bokeh.util.compiler.nodejs_compile
+def nodejs_compile(code, lang="javascript", file=None):
+    out = old_nodejs_compile(code, lang, file)
+    if 'deps' not in out:
+        out['deps'] = []
+    return out
+bokeh.util.compiler.nodejs_compile = nodejs_compile
 
 class Skymap(LayoutDOM):
     __implementation__ = "skymap.ts"
@@ -18,7 +29,21 @@ class Skymap(LayoutDOM):
     #
     #    https://docs.bokeh.org/en/latest/docs/reference/core/properties.html#bokeh-core-properties
 
-    latlon = Tuple(Angle, Angle)
+    latlon = Tuple(Angle, Angle, default=(0, 0))
 
-    azel = Tuple(Angle, Angle)
+    azel = Tuple(Angle, Angle, default=(0, 0))
     targetAzel = Tuple(Angle, Angle)
+
+class Knob(HTMLBox):
+    __implementation__ = "knob.ts"
+
+    title = String(default="")
+    value = Float(default=0)
+    writable = Bool(default=False)
+    digits = Int(default=3)
+    decimals = Int(default=3)
+    max = Float()
+    min = Float()
+    wrap = Bool(default=False)
+    unit = String()
+    active = Bool(default=True)

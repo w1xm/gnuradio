@@ -17,7 +17,7 @@ import logging.handlers
 import socket
 import rci.client
 import run
-from bokeh_models import Skymap
+from bokeh_models import Skymap, Knob
 
 class LogWatcher(logging.handlers.QueueHandler):
     def __init__(self, doc, cds):
@@ -58,10 +58,10 @@ class SessionHandler(Handler):
         self.client.set_offsets(run.az_offset, run.el_offset)
 
         self.tb = run.radiotelescope(client=self.client)
-        self.mag_to_aW = blocks.multiply_const_vff([1e18] * self.tb.get_num_channels())
-        self.tb.connect((self.tb.blocks_multiply_const_vxx_0, 0), (self.mag_to_aW, 0))
+        self.mag_to_zW = blocks.multiply_const_vff([1e18] * self.tb.get_num_channels())
+        self.tb.connect((self.tb.blocks_multiply_const_vxx_0, 0), (self.mag_to_zW, 0))
         null_sink = blocks.null_sink(gr.sizeof_float*self.tb.get_num_channels())
-        self.tb.connect(self.mag_to_aW, null_sink)
+        self.tb.connect(self.mag_to_zW, null_sink)
 
         self.tb.start()
 
@@ -79,7 +79,7 @@ class SessionHandler(Handler):
     def modify_document(self, doc):
         self.tb.lock()
         sink = bokehgui.vec_sink_f_proc(self.tb.get_num_channels(), "", 1)
-        self.tb.connect((self.mag_to_aW, 0), (sink, 0))
+        self.tb.connect((self.mag_to_zW, 0), (sink, 0))
         self.tb.unlock()
 
         # TODO: Populate with a snapshot of log messages
@@ -89,7 +89,7 @@ class SessionHandler(Handler):
 
         def cleanup_session(session_context):
             self.tb.lock()
-            self.tb.disconnect((self.mag_to_aW, 0), (sink, 0))
+            self.tb.disconnect((self.mag_to_zW, 0), (sink, 0))
             self.tb.unlock()
             logging.getLogger().removeHandler(lw)
         doc.on_session_destroyed(cleanup_session)
@@ -103,13 +103,16 @@ class SessionHandler(Handler):
         plot.initialize(update_time = 100, legend_list = [''])
         plot.get_figure().aspect_ratio = 2
         plot.set_y_axis([0, 10])
-        plot.set_y_label("Power at feed (aW / Hz)")
+        plot.set_y_label("Power at feed (zW / Hz)")
         plot.set_x_label("Frequency (MHz)")
         plot.set_x_values(np.linspace(self.tb.get_sdr_frequency()-(self.tb.get_output_vector_bandwidth()/2), self.tb.get_sdr_frequency()+(self.tb.get_output_vector_bandwidth()/2), self.tb.get_num_channels())/1e6)
         plot.enable_axis_labels(True)
         plot.set_layout(1,0)
         plot.enable_max_hold()
         plot.format_line(0, "blue", 1, "solid", None, 1.0)
+
+        azimuth = Knob(title="Azimuth", max=360, min=0, unit="°")
+        elevation = Knob(title="Elevation", max=360, min=0, unit="°")
 
         gain = Slider(title="gain", value=self.tb.get_sdr_gain(), start=0, end=65)
         gain.on_change('value', lambda name, old, new: self.tb.set_sdr_gain(new))
@@ -128,7 +131,7 @@ class SessionHandler(Handler):
             sortable=True,
         )
 
-        controls = column(gain, log_table)
+        controls = column(row(azimuth, elevation), gain, log_table)
 
         skymap = Skymap(height=600, sizing_mode="stretch_height")
         def on_tap(event):
@@ -156,6 +159,8 @@ class SessionHandler(Handler):
                 skymap.targetAzel = (status['CommandAzPos'], status['CommandElPos'])
             else:
                 skymap.targetAzel = None
+            azimuth.value = status['AzPos']
+            elevation.value = status['ElPos']
 
         doc.add_periodic_callback(update_status, 200)
 

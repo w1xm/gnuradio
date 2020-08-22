@@ -157,7 +157,7 @@ export class SkymapView extends LayoutDOMView {
   }
 
   private updateAzel(pointer: number, azel?: [number, number]): void {
-    if (azel === undefined || azel[0] === undefined || azel[1] === undefined) {
+    if (azel == undefined || azel[0] == undefined || azel[1] == undefined) {
       this._planetarium.pointers[pointer].ra = this._planetarium.pointers[pointer].dec = 0;
       this._planetarium.draw();
       return;
@@ -187,9 +187,11 @@ export class SkymapView extends LayoutDOMView {
 
   private _on_change(): void {
     const latlon = this.model.latlon
-    this._planetarium.setLatitude(latlon[0])
-    this._planetarium.setLongitude(latlon[1])
-    this._planetarium.advanceTime()
+    if (latlon != undefined) {
+      this._planetarium.setLatitude(latlon[0])
+      this._planetarium.setLongitude(latlon[1])
+      this._planetarium.advanceTime()
+    }
     this.updateAzel(this._pointerStatus, this.model.azel)
     this.updateAzel(this._pointerTarget, this.model.targetAzel)
   }
