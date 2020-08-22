@@ -4,7 +4,7 @@ from bokeh.application.application import Application
 from bokeh.application.handlers.handler import Handler
 from bokeh.events import Tap
 from bokeh.layouts import column, row
-from bokeh.models import ColumnDataSource, Slider, TextInput, DataTable, TableColumn
+from bokeh.models import ColumnDataSource, Slider, TextInput, DataTable, TableColumn, Panel, Tabs
 from bokeh.server.server import Server
 from bokeh.plotting import curdoc
 from bokeh.util import logconfig
@@ -131,7 +131,13 @@ class SessionHandler(Handler):
             sortable=True,
         )
 
-        controls = column(row(azimuth, elevation), gain, log_table)
+        manual = Panel(title="Manual", child=column(gain))
+        automated = Panel(title="Automated", child=column())
+
+        controls = column(
+            row(azimuth, elevation),
+            Tabs(tabs=[manual, automated]),
+            log_table)
 
         skymap = Skymap(height=600, sizing_mode="stretch_height")
         def on_tap(event):
