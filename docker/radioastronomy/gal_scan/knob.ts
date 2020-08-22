@@ -231,17 +231,10 @@ export class KnobView extends HTMLBoxView {
     }
 
     this._places[this._places.length - 1].element.tabIndex = 0; // initial tabbable digit
+    this._update_value()
   }
 
-  connect_signals(): void {
-    super.connect_signals()
-    this.connect(this.model.properties.title.change, () => {
-      this._label_el.textContent = this.model.title
-    })
-    const {writable, digits, decimals, unit} = this.model.properties
-    this.on_change([writable, digits, decimals, unit], () => this.render())
-    const {min, max, value, disabled} = this.model.properties
-    this.on_change([min, max, value, disabled], () => {
+  private _update_value(): void {
       const value = this.model.value;
       //console.log('externally changed to', value);
       const active = !this.model.disabled;
@@ -264,7 +257,17 @@ export class KnobView extends HTMLBoxView {
       for (let i = 0; i < this._fixedMarks.length; i++) {
 	this._fixedMarks[i].classList[active ? 'remove' : 'add']('knob-dim');
       }
+  }
+
+  connect_signals(): void {
+    super.connect_signals()
+    this.connect(this.model.properties.title.change, () => {
+      this._label_el.textContent = this.model.title
     })
+    const {writable, digits, decimals, unit} = this.model.properties
+    this.on_change([writable, digits, decimals, unit], () => this.render())
+    const {min, max, value, disabled} = this.model.properties
+    this.on_change([min, max, value, disabled], () => this._update_value())
   }
 }
 
