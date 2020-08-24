@@ -4,7 +4,7 @@ from bokeh.application.application import Application
 from bokeh.application.handlers.handler import Handler
 from bokeh.events import Tap
 from bokeh.layouts import column, row, grid
-from bokeh.models import ColumnDataSource, Spinner, Slider, Select, TextInput, DataTable, TableColumn, Panel, Tabs, Toggle
+from bokeh.models import CustomJS, ColumnDataSource, Spinner, Slider, Select, TextInput, DataTable, TableColumn, Panel, Tabs, Toggle
 from bokeh.server.server import Server
 from bokeh.plotting import curdoc
 from bokeh.util import logconfig
@@ -152,8 +152,10 @@ class SessionHandler(Handler):
         ))
 
         run_models = {}
+        automated_panels = []
         for group, args in run.arg_groups.items():
             # TODO: show grouping
+            panel_models = []
             # TODO: hide or disable mode=grid if grid is not selected
             for key, arg in args.items():
                 key = key.replace('-', '_')
@@ -186,8 +188,19 @@ class SessionHandler(Handler):
                     bokeh_args['value'] = str(bokeh_args['value'])
                 m = type(**bokeh_args)
                 run_models[key] = m
-
-        automated = Panel(title="Automated", child=grid(list(run_models.values()), ncols=2))
+                panel_models.append(m)
+            automated_panels.append(Panel(title=group, child=grid(panel_models, ncols=2)))
+        for panel in automated_panels:
+            if panel.title.startswith("mode="):
+                mode_str = panel.title.split('=')[1]
+                run_models['mode'].js_on_change(
+                    'value',
+                    CustomJS(
+                        args=dict(panel=panel, mode=mode_str),
+                        code="""panel.select(Bokeh.require("models/widgets/control").Control).forEach(c => c.disabled = (this.value != mode))""",
+                    )
+                )
+        automated = Panel(title="Automated", child=Tabs(tabs=automated_panels))
 
         controls = column(
             row(azimuth, elevation),
