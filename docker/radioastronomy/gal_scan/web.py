@@ -3,8 +3,8 @@
 from bokeh.application.application import Application
 from bokeh.application.handlers.handler import Handler
 from bokeh.events import Tap
-from bokeh.layouts import column, row
-from bokeh.models import ColumnDataSource, Slider, TextInput, DataTable, TableColumn, Panel, Tabs, Toggle
+from bokeh.layouts import column, row, grid
+from bokeh.models import ColumnDataSource, Spinner, Slider, Select, TextInput, DataTable, TableColumn, Panel, Tabs, Toggle
 from bokeh.server.server import Server
 from bokeh.plotting import curdoc
 from bokeh.util import logconfig
@@ -63,17 +63,27 @@ class SessionHandler(Handler):
         null_sink = blocks.null_sink(gr.sizeof_float*self.tb.get_num_channels())
         self.tb.connect(self.mag_to_zW, null_sink)
 
-        self.tb.start()
+        self.started = False
 
     def on_server_unloaded(self, server_context):
         self.tb.stop()
         self.tb.wait()
 
     async def on_session_created(self, session_context):
+        if not self.started:
+            logging.info("Starting flowgraph")
+            self.tb.start()
         session_context.test_variable = 123
 
     async def on_session_destroyed(self, session_context):
         logging.info("Session %s destroyed", session_context.id)
+        num_sessions = len(session_context.server_context.sessions)
+        logging.info("%d sessions remain", num_sessions)
+        if not num_sessions:
+            # TODO: Check if a job is running
+            logging.info("Stopping flowgraph")
+            self.tb.stop()
+            self.started = False
         logging.debug("test_variable = %s", getattr(session_context, 'test_variable'))
 
     def modify_document(self, doc):
@@ -140,7 +150,44 @@ class SessionHandler(Handler):
         manual = Panel(title="Manual", child=column(
             row(rx, gain),
         ))
-        automated = Panel(title="Automated", child=column())
+
+        run_models = {}
+        for group, args in run.arg_groups.items():
+            # TODO: show grouping
+            # TODO: hide or disable mode=grid if grid is not selected
+            for key, arg in args.items():
+                key = key.replace('-', '_')
+                bokeh_args = arg.get('bokeh', {})
+                bokeh_args['name'] = key
+                bokeh_args['tags'] = ['args']
+                if 'default' in arg:
+                    bokeh_args['value'] = arg['default']
+                if 'help' in arg:
+                    bokeh_args['title'] = arg['help']
+                    if 'metavar' in arg:
+                        bokeh_args['title'] += " (%s)" % (arg['metavar'])
+                type = TextInput
+                if arg.get('type') in (float, int):
+                    type = Spinner
+                    if 'bokeh' in arg and 'start' in arg['bokeh'] and 'end' in arg['bokeh']:
+                        type = Slider
+                    if 'step' not in bokeh_args:
+                        if arg['type'] == int:
+                            bokeh_args['step'] = 1
+                        else:
+                            bokeh_args['step'] = 0.01
+                elif 'choices' in arg:
+                    type = Select
+                    bokeh_args['options'] = [str(x) for x in arg['choices']]
+                    bokeh_args['value'] = str(bokeh_args['value'])
+                elif arg.get('action') in ('store_true', 'store_false'):
+                    type = Select
+                    bokeh_args['options'] = [(0, 'False'), (1, 'True')]
+                    bokeh_args['value'] = str(bokeh_args['value'])
+                m = type(**bokeh_args)
+                run_models[key] = m
+
+        automated = Panel(title="Automated", child=grid(list(run_models.values()), ncols=2))
 
         controls = column(
             row(azimuth, elevation),
