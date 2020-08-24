@@ -1,7 +1,7 @@
-from bokeh.core.properties import Angle, Tuple, Bool, Int, Float, String
+from bokeh.core.properties import Angle, Tuple, Bool, Int, Float, String, Instance
 from bokeh.io import show
 from bokeh.model import Model
-from bokeh.models import ColumnDataSource, LayoutDOM, HTMLBox
+from bokeh.models import CustomJS, ColumnDataSource, LayoutDOM, HTMLBox, Button
 import bokeh.util.compiler
 from bokeh.util.compiler import TypeScript
 
@@ -47,3 +47,10 @@ class Knob(HTMLBox):
     wrap = Bool(default=False)
     unit = String()
     active = Bool(default=True)
+
+class DownloadButton(Button):
+    __implementation__ = "download_button.ts"
+
+    data = Instance(CustomJS)
+    filename = String(default="data.bin")
+    mime_type = String(default="application/octet-stream")

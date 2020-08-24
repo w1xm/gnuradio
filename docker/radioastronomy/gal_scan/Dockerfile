@@ -9,7 +9,8 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -y \
     python3-matplotlib \
     python3-astropy \
     python3-astroplan \
-    python-is-python3
+    python-is-python3 \
+    npm
 
 COPY flowgraph.grc /src/
 WORKDIR /flowgraph/

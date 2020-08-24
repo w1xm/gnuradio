@@ -4,7 +4,7 @@ from bokeh.application.application import Application
 from bokeh.application.handlers.handler import Handler
 from bokeh.events import Tap
 from bokeh.layouts import column, row, grid
-from bokeh.models import CustomJS, ColumnDataSource, Spinner, Slider, Select, TextInput, DataTable, TableColumn, Panel, Tabs, Toggle
+from bokeh.models import CustomJS, Button, ColumnDataSource, Spinner, Slider, Select, TextInput, DataTable, TableColumn, Panel, Tabs, Toggle, RadioButtonGroup
 from bokeh.server.server import Server
 from bokeh.plotting import curdoc
 from bokeh.util import logconfig
@@ -17,7 +17,7 @@ import logging.handlers
 import socket
 import rci.client
 import run
-from bokeh_models import Skymap, Knob
+from bokeh_models import Skymap, Knob, DownloadButton
 
 class LogWatcher(logging.handlers.QueueHandler):
     def __init__(self, doc, cds):
@@ -70,6 +70,7 @@ class SessionHandler(Handler):
         self.tb.wait()
 
     async def on_session_created(self, session_context):
+        logging.info("Session %s created", session_context.id)
         if not self.started:
             logging.info("Starting flowgraph")
             self.tb.start()
@@ -200,7 +201,22 @@ class SessionHandler(Handler):
                         code="""panel.select(Bokeh.require("models/widgets/control").Control).forEach(c => c.disabled = (this.value != mode))""",
                     )
                 )
-        automated = Panel(title="Automated", child=Tabs(tabs=automated_panels))
+        load = Button(label="Load settings")
+        save = DownloadButton(
+            label="Save settings",
+            filename="gal_scan_settings.json",
+            mime_type="application/json",
+            data=CustomJS(
+                args=dict(run_models=run_models),
+                code="""
+                const out = {}
+                for (let k in run_models) {
+                  out[k] = run_models[k].value
+                }
+                return JSON.stringify(out, null, 2);
+                """))
+        start = Button(label="Start scan")
+        automated = Panel(title="Automated", child=column(Tabs(tabs=automated_panels), row(load, save, start)))
 
         controls = column(
             row(azimuth, elevation),
