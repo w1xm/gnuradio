@@ -4,6 +4,7 @@
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
+import logging
 import numpy as np
 import argparse
 import os
@@ -25,13 +26,15 @@ import rci.client
 from flowgraph import flowgraph
 
 class radiotelescope(flowgraph):
+    logger = logging.getLogger('radiotelescope')
+
     def __init__(self, client, **kwargs):
         super(radiotelescope, self).__init__(**kwargs)
         self.client = client
         self.darksky = None
 
     def snapshot(self, int_time): #straight snapshot over a certain integration time.
-        print('Snapshot %d sec' % (int_time,))
+        self.logger.info('Snapshot %d sec', int_time)
         self.integration_block.integrate(int_time)
         vec = None
         while vec is None:
@@ -47,7 +50,7 @@ class radiotelescope(flowgraph):
         Blocks until the dish has stopped moving.
         """
 
-        print('Moving to position ' + str(az)+' , '+str(el)+'.')
+        self.logger.info('Moving to position %s, %s.', az, el)
         while True:
             self.client.set_azimuth_position(az)
             self.client.set_elevation_position(el)
@@ -55,14 +58,14 @@ class radiotelescope(flowgraph):
             status = self.client.status
             if status.get("ShutdownError") == 11:
                 # Ignore elevation overvelocity
-                print('Elevation overvelocity shutdown. Resetting.')
+                self.logger.warning('Elevation overvelocity shutdown. Resetting.')
                 self.client.i_know_what_i_am_doing_unsafe_exit_shutdown()
             elif not status.get("Moving"):
                 return
-            print('Still moving, current position (%g, %g).' % (self.client.azimuth_position, self.client.elevation_position))
+            self.logger.debug('Still moving, current position (%g, %g).', self.client.azimuth_position, self.client.elevation_position)
 
     def park(self):
-        print("Parking")
+        self.logger.info("Parking")
         self.point(250,50)
 
 
@@ -103,6 +106,10 @@ arg_groups = {
 }
 
 def main(top_block_cls=radiotelescope, options=None):
+    logging.basicConfig(
+        format="%(asctime)-15s %(levelname)-8s [%(name)s] [%(module)s:%(funcName)s] %(message)s",
+        level=logging.DEBUG,
+    )
     parser = argparse.ArgumentParser(description='Galactic sky scan')
     parser.add_argument('output_dir', metavar='DIRECTORY',
                         help='output directory to write scan results')
@@ -152,7 +159,7 @@ def main(top_block_cls=radiotelescope, options=None):
         **tbkwargs
     )
     tb.start()
-    print('Receiving ...')
+    logging.info('Receiving ...')
 
     try:
         band=0

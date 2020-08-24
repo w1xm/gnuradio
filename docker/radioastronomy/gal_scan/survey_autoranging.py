@@ -12,6 +12,7 @@ from galcoord import gal_to_altaz
 from galcoord import directional_offset_by
 import numpy as np
 from galcoord import get_time
+import logging
 import os.path
 import itertools
 import time
@@ -102,6 +103,8 @@ class grid_iterator(iterator):
 POSITION_FIELDS = ('time', 'azimuth', 'elevation', 'longitude', 'latitude', 'ra', 'dec', 'rci_azimuth', 'rci_elevation')
 
 def run_survey(tb, savefolder, iterator, args, int_time=30, darksky_offset=0, ref_frequency=HYDROGEN_FREQ):
+    logger = logging.getLogger("survey")
+
     tb.set_sdr_gain(args.gain)
     freq=tb.get_sdr_frequency()*u.Hz
     gain=tb.get_sdr_gain()*u.dB
@@ -142,11 +145,11 @@ def run_survey(tb, savefolder, iterator, args, int_time=30, darksky_offset=0, re
                     pos_altaz = directional_offset_by(pos_altaz, 90*u.degree, darksky_offset*u.degree)
                     pos = pos_altaz
                 if pos_altaz.alt < 0:
-                    print("Can't observe at %s; target is below the horizon" % pos)
+                    logger.warning("Can't observe at %s; target is below the horizon", pos)
                     continue
                 tb.point(pos_altaz.az.degree, pos_altaz.alt.degree)
 
-                print("Observing at coordinates "+str(pos)+'.')
+                logger.info("Observing at coordinates %s.", pos)
                 data=tb.observe(int_time)*(u.mW/u.Hz)
 
                 apytime.format = 'unix'
@@ -194,8 +197,7 @@ def run_survey(tb, savefolder, iterator, args, int_time=30, darksky_offset=0, re
                     if 'longitude' in row:
                         plot.plot_velocity(vel_range, data, iterator.format_title(row) + ' '+ str(apytime), prefix+'_vel.pdf')
 
-                print('Data logged.')
-                print()
+                logger.info('Data logged.')
 
     finally:
         all_data = QTable(all_data)
