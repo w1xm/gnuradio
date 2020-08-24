@@ -74,6 +74,34 @@ class Mode(Enum):
     def __str__(self):
         return self.value
 
+arg_groups = {
+    'General': {
+        'int-time': dict(type=int, default=30, help='integration time', metavar='seconds',
+                         bokeh=dict(low=0)),
+        'gain': dict(type=int, default=45, help='SDR gain', metavar='dB',
+                    bokeh=dict(start=0, end=65)),
+        'repeat': dict(type=int, default=1, help='number of times to repeat scan',
+                       bokeh=dict(low=1)),
+        'ref': dict(default=False, action='store_true', help='measure 50Ω reference load'),
+    },
+    'Iterator': {
+        'mode': dict(type=Mode, choices=list(Mode), default=Mode.gal),
+        'start': dict(type=float, default=0, help='start'),
+        'stop': dict(type=float, default=360, help='end'),
+        'step': dict(type=float, default=2.5, help='step'),
+        'darksky-offset': dict(type=float, default=0, help='darksky offset', metavar='°'),
+    },
+    'mode=grid': {
+        'obj-name': dict(help='named object'),
+        'lat': dict(type=float, help='center galactic latitude', metavar='°',
+                    bokeh=dict(low=-180, high=180)),
+        'lon': dict(type=float, help='center galactic longitude', metavar='°',
+                    bokeh=dict(low=0, high=360)),
+        'rotation': dict(type=float, help='grid rotation', metavar='°'),
+        'rotation-frame': dict(default='iers', choices=('iers', 'galactic'), help='grid rotation frame'),
+    },
+}
+
 def main(top_block_cls=radiotelescope, options=None):
     parser = argparse.ArgumentParser(description='Galactic sky scan')
     parser.add_argument('output_dir', metavar='DIRECTORY',
@@ -82,33 +110,12 @@ def main(top_block_cls=radiotelescope, options=None):
                         help='change SDR frequency')
     parser.add_argument('--bandwidth', metavar='HZ', type=float,
                         help='change filter bandwidth')
-    parser.add_argument('--int-time', type=int, default=30,
-                        help='integration time')
-    parser.add_argument('--gain', type=int, default=45,
-                        help='SDR gain')
-    parser.add_argument('--mode', type=Mode, choices=list(Mode), default=Mode.gal)
-    parser.add_argument('--step', type=float, default=2.5,
-                        help='position step size')
-    parser.add_argument('--start', type=float, default=0,
-                        help='starting position')
-    parser.add_argument('--stop', type=float, default=360,
-                        help='ending position')
-    parser.add_argument('--rotation', type=float,
-                        help='degrees to rotate grid off-axis')
-    parser.add_argument('--rotation-frame', default='icrs',
-                        help='frame to rotate grid in')
-    parser.add_argument('--lat', type=float,
-                        help='galactic latitude to scan (for grid mode)')
-    parser.add_argument('--lon', type=float,
-                        help='galactic longitude to scan (for grid mode)')
-    parser.add_argument('--obj-name',
-                        help='named object to scan')
-    parser.add_argument('--repeat', type=int, default=1,
-                        help='number of times to repeat scan')
-    parser.add_argument('--darksky-offset', type=float, default=0,
-                        help='degree offset in azimuth to take darksky calibration at')
-    parser.add_argument('--ref', default=False, action='store_true',
-                        help='measure reference level instead')
+    for group_name, group_args in arg_groups.items():
+        group = parser.add_argument_group(group_name)
+        for arg_name, kwargs in group_args.items():
+            if 'bokeh' in kwargs:
+                del kwargs['bokeh']
+            group.add_argument('--'+arg_name, **kwargs)
     args = parser.parse_args()
 
     iterator_cls = {

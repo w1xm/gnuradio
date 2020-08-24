@@ -102,6 +102,7 @@ class grid_iterator(iterator):
 POSITION_FIELDS = ('time', 'azimuth', 'elevation', 'longitude', 'latitude', 'ra', 'dec', 'rci_azimuth', 'rci_elevation')
 
 def run_survey(tb, savefolder, iterator, args, int_time=30, darksky_offset=0, ref_frequency=HYDROGEN_FREQ):
+    tb.set_sdr_gain(args.gain)
     freq=tb.get_sdr_frequency()*u.Hz
     gain=tb.get_sdr_gain()*u.dB
     freq_offset=tb.get_output_vector_bandwidth()*u.Hz/2
