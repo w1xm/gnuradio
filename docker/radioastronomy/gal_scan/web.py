@@ -10,9 +10,11 @@ from bokeh.plotting import curdoc
 from bokeh.util import logconfig
 from gnuradio import gr, blocks
 import bokehgui
+import base64
 import collections
 import functools
 import numpy as np
+import json
 import logging
 import logging.handlers
 import socket
@@ -225,7 +227,13 @@ class SessionHandler(Handler):
                         code="""panel.select(Bokeh.require("models/widgets/control").Control).forEach(c => c.disabled = (this.value != mode))""",
                     )
                 )
-        load = UploadButton(name="load-settings", label="Load settings")
+        load = UploadButton(name="load-settings", accept=".json,application/json", label="Load settings")
+        def on_load(attr, old, new):
+            data = json.loads(base64.b64decode(new))
+            for key, value in data.items():
+                run_models[key].value = value
+        load.on_change('value', on_load)
+
         save = DownloadButton(
             label="Save settings",
             filename="gal_scan_settings.json",
