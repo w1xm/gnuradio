@@ -12,6 +12,8 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -y \
     python-is-python3 \
     npm
 
+RUN pip3 install py-spy
+
 COPY flowgraph.grc /src/
 WORKDIR /flowgraph/
 RUN . /pybombs/setup_env.sh && grcc -o /flowgraph /src/flowgraph.grc

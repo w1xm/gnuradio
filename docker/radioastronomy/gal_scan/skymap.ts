@@ -93,7 +93,7 @@ export class SkymapView extends LayoutDOMView {
       'callback': {
 	'click': function(this: S.VirtualSky, e: S.event) {
 	  const azel = this.projection.xy2azel(e.x, e.y, this.wide, this.tall)
-	  const az = azel[0]/this.d2r+this.az_off
+	  const az = (azel[0]/this.d2r+this.az_off) % 360
 	  const el = azel[1]/this.d2r
 	  console.log(az, el)
 	  view.click(e, [az, el])

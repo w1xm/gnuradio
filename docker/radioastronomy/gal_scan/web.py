@@ -81,6 +81,7 @@ class SessionHandler(Handler):
         self.lw = lw
 
     def on_server_loaded(self, server_context):
+        self.server_context = server_context
         self.client = rci.client.Client(client_name='gal_scan')
         self.client.set_offsets(run.az_offset, run.el_offset)
 
@@ -91,28 +92,92 @@ class SessionHandler(Handler):
         self.tb.connect(self.mag_to_zW, null_sink)
 
         self.started = False
+        self.actions = collections.deque()
+        self.actions_cv = threading.Condition()
+        self.actions_exit = False
+        self.actions_thread = threading.Thread(target=self.action_thread, name="radiotelescope")
+        self.actions_thread.start()
+
+    def action_thread(self):
+        with self.actions_cv:
+            while True:
+                logging.debug("Looking for next action")
+                while self.actions:
+                    self.start_tb()
+                    action = self.actions.popleft()
+                    logging.info("Executing %s", action["name"])
+                    # Release the lock so that the deque can be inspected and appended
+                    self.actions_cv.release()
+                    action["callable"]()
+                    self.actions_cv.acquire()
+                if self.actions_exit:
+                    return
+                self.maybe_stop_tb()
+                logging.debug("Waiting for next action")
+                self.actions_cv.wait()
+
+    def enqueue_action(self, name, callable):
+        with self.actions_cv:
+            if self.actions:
+                logging.info("Busy; enqueueing %s", name)
+            self.actions.append({
+                'name': name,
+                'callable': callable,
+            })
+            logging.debug("Notifying of new action")
+            self.actions_cv.notify()
+
+    def point(self, az, el):
+        def callable():
+            self.client.set_azimuth_position(az)
+            self.client.set_elevation_position(el)
+        self.enqueue_action(
+            name="manual slew to (%.2f, %.2f)" % (az, el),
+            callable=callable,
+        )
+
+    def set_gain(self, gain):
+        self.enqueue_action(
+            name="set gain to %d" % gain,
+            callable=functools.partial(self.tb.set_sdr_gain, gain),
+        )
+
+    def set_rx(self, rx):
+        self.enqueue_action(
+            name="set rx to %s" % rx,
+            callable=functools.partial(self.client.set_band_rx, 0, rx),
+        )
 
     def on_server_unloaded(self, server_context):
+        self.actions_exit = True
+        self.actions_cv.notify()
+        self.actions_thread.join()
         self.tb.stop()
         self.tb.wait()
 
+    def start_tb(self):
+        with self.actions_cv:
+            if not self.started:
+                logging.info("Starting flowgraph")
+                self.tb.start()
+                self.started = True
+
+    def maybe_stop_tb(self):
+        num_sessions = len(self.server_context.sessions)
+        with self.actions_cv:
+            if self.started and not self.actions and not num_sessions:
+                # TODO: Check if a job is running
+                logging.info("Stopping flowgraph")
+                self.tb.stop()
+                self.started = False
+
     async def on_session_created(self, session_context):
         logging.info("Session %s created", session_context.id)
-        if not self.started:
-            logging.info("Starting flowgraph")
-            self.tb.start()
-        session_context.test_variable = 123
+        self.start_tb()
 
     async def on_session_destroyed(self, session_context):
         logging.info("Session %s destroyed", session_context.id)
-        num_sessions = len(session_context.server_context.sessions)
-        logging.info("%d sessions remain", num_sessions)
-        if not num_sessions:
-            # TODO: Check if a job is running
-            logging.info("Stopping flowgraph")
-            self.tb.stop()
-            self.started = False
-        logging.debug("test_variable = %s", getattr(session_context, 'test_variable'))
+        self.maybe_stop_tb()
 
     def modify_document(self, doc):
         self.tb.lock()
@@ -166,13 +231,10 @@ class SessionHandler(Handler):
         )
 
         gain = Slider(title="gain", value=self.tb.get_sdr_gain(), start=0, end=65)
-        gain.on_change('value', lambda name, old, new: self.tb.set_sdr_gain(new))
+        gain.on_change('value', lambda name, old, new: self.set_gain(new))
 
         rx = Toggle(label="RX enabled")
-        def on_rx(new):
-            # TODO: Dispatch
-            self.client.set_band_rx(0, new)
-        rx.on_click(on_rx)
+        rx.on_click(self.set_rx)
 
         manual = Panel(title="Manual", child=column(
             row(rx, gain),
@@ -258,12 +320,7 @@ class SessionHandler(Handler):
             log_table)
 
         skymap = Skymap(height=600, sizing_mode="stretch_height")
-        def on_tap(event):
-            # TODO: Dispatch self.tb.point on the execution thread instead
-            logging.info("Manually slewing to (%.2f, %.2f)", event.x, event.y)
-            self.client.set_azimuth_position(event.x)
-            self.client.set_elevation_position(event.y)
-        skymap.on_event(Tap, on_tap)
+        skymap.on_event(Tap, lambda event: self.point(event.x, event.y))
 
         doc.add_root(
             row(
