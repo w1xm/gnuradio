@@ -186,7 +186,7 @@ class SessionHandler(Handler):
                 elif arg.get('action') in ('store_true', 'store_false'):
                     type = Select
                     bokeh_args['options'] = [(0, 'False'), (1, 'True')]
-                    bokeh_args['value'] = str(bokeh_args['value'])
+                    bokeh_args['value'] = str(int(bokeh_args['value']))
                 m = type(**bokeh_args)
                 run_models[key] = m
                 panel_models.append(m)
@@ -211,7 +211,9 @@ class SessionHandler(Handler):
                 code="""
                 const out = {}
                 for (let k in run_models) {
-                  out[k] = run_models[k].value
+                  if (!run_models[k].disabled) {
+                    out[k] = run_models[k].value
+                  }
                 }
                 return JSON.stringify(out, null, 2);
                 """))
