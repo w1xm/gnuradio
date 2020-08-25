@@ -19,7 +19,7 @@ import socket
 import threading
 import rci.client
 import run
-from bokeh_models import Skymap, Knob, DownloadButton
+from bokeh_models import Skymap, Knob, DownloadButton, UploadButton
 
 LOG_ROLLOVER = 100
 LOG_EXCLUDE = (
@@ -225,7 +225,7 @@ class SessionHandler(Handler):
                         code="""panel.select(Bokeh.require("models/widgets/control").Control).forEach(c => c.disabled = (this.value != mode))""",
                     )
                 )
-        load = Button(label="Load settings")
+        load = UploadButton(name="load-settings", label="Load settings")
         save = DownloadButton(
             label="Save settings",
             filename="gal_scan_settings.json",

@@ -1,7 +1,7 @@
 from bokeh.core.properties import Angle, Tuple, Bool, Int, Float, String, Instance
 from bokeh.io import show
 from bokeh.model import Model
-from bokeh.models import CustomJS, ColumnDataSource, LayoutDOM, HTMLBox, Button
+from bokeh.models import CustomJS, ColumnDataSource, LayoutDOM, HTMLBox, Button, FileInput, ButtonLike
 import bokeh.util.compiler
 from bokeh.util.compiler import TypeScript
 
@@ -54,3 +54,10 @@ class DownloadButton(Button):
     data = Instance(CustomJS)
     filename = String(default="data.bin")
     mime_type = String(default="application/octet-stream")
+
+class UploadButton(FileInput, ButtonLike):
+    __implementation__ = "upload_button.ts"
+
+    label = String("", help="""
+    The text label for the button to display.
+    """)
