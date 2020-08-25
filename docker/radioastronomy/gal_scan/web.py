@@ -10,31 +10,55 @@ from bokeh.plotting import curdoc
 from bokeh.util import logconfig
 from gnuradio import gr, blocks
 import bokehgui
+import collections
 import functools
 import numpy as np
 import logging
 import logging.handlers
 import socket
+import threading
 import rci.client
 import run
 from bokeh_models import Skymap, Knob, DownloadButton
 
+LOG_ROLLOVER = 100
+LOG_EXCLUDE = (
+    'bokeh.server.views.ws',
+    'tornado.access',
+)
+
 class LogWatcher(logging.handlers.QueueHandler):
+    def __init__(self):
+        super().__init__(None)
+        self.setLevel(logging.INFO)
+        self.asctime = collections.deque(maxlen=LOG_ROLLOVER)
+        self.levelname = collections.deque(maxlen=LOG_ROLLOVER)
+        self.message = collections.deque(maxlen=LOG_ROLLOVER)
+
+    def filter(self, record):
+        return super().filter(record) and record.name not in LOG_EXCLUDE
+
+    def enqueue(self, record):
+        self.asctime.append(record.asctime)
+        self.levelname.append(record.levelname)
+        self.message.append(record.message)
+
+    def get_table(self):
+        with self.lock:
+            return {
+                'asctime': list(self.asctime),
+                'levelname': list(self.levelname),
+                'message': list(self.message),
+            }
+
+class BokehLogWatcher(logging.handlers.QueueHandler):
     def __init__(self, doc, cds):
         super().__init__(cds)
         self.setLevel(logging.INFO)
         self.doc = doc
-        self.rollover = 100
 
     def filter(self, record):
-        if not super().filter(record):
-            return False
-        if record.name in (
-                'bokeh.server.views.ws',
-                'tornado.access',
-        ):
-            return False
-        return True
+        return super().filter(record) and record.name not in LOG_EXCLUDE
 
     def enqueue(self, record):
         self.doc.add_next_tick_callback(
@@ -45,13 +69,14 @@ class LogWatcher(logging.handlers.QueueHandler):
                     "levelname": [record.levelname],
                     "message": [record.message],
                 },
-                rollover=self.rollover,
+                rollover=LOG_ROLLOVER,
             )
         )
 
 class SessionHandler(Handler):
-    def __init__(self):
+    def __init__(self, lw):
         super().__init__()
+        self.lw = lw
 
     def on_server_loaded(self, server_context):
         self.client = rci.client.Client(client_name='gal_scan')
@@ -93,10 +118,9 @@ class SessionHandler(Handler):
         self.tb.connect((self.mag_to_zW, 0), (sink, 0))
         self.tb.unlock()
 
-        # TODO: Populate with a snapshot of log messages
-        log_cds = ColumnDataSource(data=dict(asctime=[''], levelname=[''], message=['']))
-        lw = LogWatcher(doc, log_cds)
-        logging.getLogger().addHandler(lw)
+        log_cds = ColumnDataSource(data=self.lw.get_table())
+        blw = BokehLogWatcher(doc, log_cds)
+        logging.getLogger().addHandler(blw)
 
         def cleanup_session(session_context):
             self.tb.lock()
@@ -271,8 +295,10 @@ if __name__ == '__main__':
         format="%(asctime)-15s %(levelname)-8s [%(name)s] [%(module)s:%(funcName)s] %(message)s",
         level=logging.DEBUG,
     )
+    lw = LogWatcher()
+    logging.getLogger().addHandler(lw)
     server = Server(
-        {'/': Application(SessionHandler())},
+        {'/': Application(SessionHandler(lw=lw))},
         allow_websocket_origin=[socket.getfqdn().lower()+":5006"],
     )
     server.start()
