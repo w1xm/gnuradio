@@ -18,12 +18,19 @@ import numpy as np
 import json
 import logging
 import logging.handlers
+import os
+import os.path
 import socket
 import threading
 import time
+import tornado.web
+from tornado.web import HTTPError
+from tornado.escape import xhtml_escape
 import rci.client
 import run
 from bokeh_models import Skymap, Knob, DownloadButton, UploadButton
+
+RUNS_DIR = "/runs/"
 
 LOG_ROLLOVER = 100
 LOG_EXCLUDE = (
@@ -78,9 +85,10 @@ class BokehLogWatcher(logging.handlers.QueueHandler):
         )
 
 class SessionHandler(Handler):
-    def __init__(self, lw):
+    def __init__(self, lw, runs_dir):
         super().__init__()
         self.lw = lw
+        self.runs_dir = runs_dir
 
     def on_server_loaded(self, server_context):
         self.server_context = server_context
@@ -128,9 +136,12 @@ class SessionHandler(Handler):
                 'name': [a['name'] for a in self.actions],
             }
 
-    def enqueue_action(self, name, callable):
+    def enqueue_action(self, name, callable, allow_queue=False):
         with self.actions_cv:
             if self.actions:
+                if not allow_queue:
+                    logging.warning("Busy; ignoring manual command")
+                    return
                 logging.info("Busy; enqueueing %s", name)
             self.actions.append({
                 'time': time.time(),
@@ -144,6 +155,7 @@ class SessionHandler(Handler):
         self.enqueue_action(
             name=args.output_dir,
             callable=functools.partial(run.run, self.tb, args),
+            allow_queue=True,
         )
 
     def point(self, az, el):
@@ -244,7 +256,7 @@ class SessionHandler(Handler):
                 TableColumn(field="levelname", title="Level"),
                 TableColumn(field="message", title="Message"),
             ],
-            autosize_mode="fit_viewport",
+            fit_columns=True,
             aspect_ratio=2,
             sizing_mode="stretch_width",
             sortable=True,
@@ -338,7 +350,7 @@ class SessionHandler(Handler):
         start = Button(label="Start scan")
         def on_start():
             try:
-                output_dir = "run_"+datetime.datetime.now().replace(microsecond=0).isoformat()
+                output_dir = os.path.join(self.runs_dir, "run_"+datetime.datetime.now().replace(microsecond=0).isoformat())
                 args = run.parse_args(
                     [output_dir],
                     {k: int(v.value) if "boolean" in v.tags else v.value for k, v in run_models.items() if not v.disabled},
@@ -405,16 +417,45 @@ class SessionHandler(Handler):
 
         doc.add_periodic_callback(update_status, 200)
 
+class DirectoryHandler(tornado.web.RequestHandler):
+    def initialize(self, path):
+        self.root = path
+
+    async def get(self, relative_path):
+        abspath = os.path.abspath(os.path.join(self.root, relative_path))
+        if not (abspath + os.path.sep).startswith(self.root):
+            logging.warning("root %s abspath %s relative_path %s", self.root, abspath, relative_path)
+            raise HTTPError(403, "%s is not in root static directory", relative_path)
+
+        if os.path.isdir(abspath):
+            html = '<html><title>Directory listing for %s</title><body><h2>Directory listing for %s</h2><hr><ul>' % (relative_path, relative_path)
+            for filename in sorted(os.listdir(abspath)):
+                force_slash = ''
+                full_path = filename
+                if os.path.isdir(os.path.join(abspath, filename)):
+                    force_slash = '/'
+
+                html += '<li><a href="%s%s">%s%s</a>' % (xhtml_escape(full_path), force_slash, xhtml_escape(filename), force_slash)
+
+            return self.finish(html + '</ul><hr>')
+        raise HTTPError(404, "%s does not exist", relative_path)
+
 if __name__ == '__main__':
     logconfig.basicConfig(
         format="%(asctime)-15s %(levelname)-8s [%(name)s] [%(module)s:%(funcName)s] %(message)s",
         level=logging.DEBUG,
     )
+    os.makedirs(RUNS_DIR, exist_ok=True)
     lw = LogWatcher()
     logging.getLogger().addHandler(lw)
     server = Server(
-        {'/': Application(SessionHandler(lw=lw))},
+        {'/': Application(SessionHandler(lw=lw, runs_dir=RUNS_DIR))},
         allow_websocket_origin=[socket.getfqdn().lower()+":5006"],
+        extra_patterns=[
+            (r'/runs/()', DirectoryHandler, {'path': RUNS_DIR}),
+            (r'/runs/(.*)/', DirectoryHandler, {'path': RUNS_DIR}),
+            (r'/runs/(.*)', tornado.web.StaticFileHandler, {'path': RUNS_DIR}),
+        ],
     )
     server.start()
     server.io_loop.start()
