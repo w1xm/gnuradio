@@ -12,6 +12,7 @@ from gnuradio import gr, blocks
 import bokehgui
 import base64
 import collections
+import datetime
 import functools
 import numpy as np
 import json
@@ -109,8 +110,10 @@ class SessionHandler(Handler):
                     logging.info("Executing %s", action["name"])
                     # Release the lock so that the deque can be inspected and appended
                     self.actions_cv.release()
-                    action["callable"]()
-                    self.actions_cv.acquire()
+                    try:
+                        action["callable"]()
+                    finally:
+                        self.actions_cv.acquire()
                 if self.actions_exit:
                     return
                 self.maybe_stop_tb()
@@ -136,6 +139,12 @@ class SessionHandler(Handler):
             })
             logging.debug("Notifying of new action")
             self.actions_cv.notify()
+
+    def enqueue_run(self, args):
+        self.enqueue_action(
+            name=args.output_dir,
+            callable=functools.partial(run.run, self.tb, args),
+        )
 
     def point(self, az, el):
         def callable():
@@ -235,6 +244,7 @@ class SessionHandler(Handler):
                 TableColumn(field="levelname", title="Level"),
                 TableColumn(field="message", title="Message"),
             ],
+            autosize_mode="fit_viewport",
             aspect_ratio=2,
             sizing_mode="stretch_width",
             sortable=True,
@@ -285,6 +295,7 @@ class SessionHandler(Handler):
                     type = Select
                     bokeh_args['options'] = [(0, 'False'), (1, 'True')]
                     bokeh_args['value'] = str(int(bokeh_args['value']))
+                    bokeh_args['tags'] = ['boolean'] + bokeh_args.get('tags', [])
                 m = type(**bokeh_args)
                 run_models[key] = m
                 panel_models.append(m)
@@ -317,11 +328,25 @@ class SessionHandler(Handler):
                 for (let k in run_models) {
                   if (!run_models[k].disabled) {
                     out[k] = run_models[k].value
+                    if (run_models[k].tags.indexOf("boolean") >= 0) {
+                      out[k] = parseInt(out[k])
+                    }
                   }
                 }
                 return JSON.stringify(out, null, 2);
                 """))
         start = Button(label="Start scan")
+        def on_start():
+            try:
+                output_dir = "run_"+datetime.datetime.now().replace(microsecond=0).isoformat()
+                args = run.parse_args(
+                    [output_dir],
+                    {k: int(v.value) if "boolean" in v.tags else v.value for k, v in run_models.items() if not v.disabled},
+                )
+                self.enqueue_run(args)
+            except SystemExit:
+                pass
+        start.on_click(on_start)
         automated = Panel(title="Plan", child=column(Tabs(tabs=automated_panels), row(load, save, start)))
 
         queue_cds = ColumnDataSource(data={"time": [], "user": [], "name": []})

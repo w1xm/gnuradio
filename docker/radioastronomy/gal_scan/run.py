@@ -8,6 +8,7 @@ import logging
 import numpy as np
 import argparse
 import os
+import sys
 import time
 from enum import Enum
 import survey_autoranging
@@ -105,12 +106,14 @@ arg_groups = {
     },
 }
 
-def main(top_block_cls=radiotelescope, options=None):
-    logging.basicConfig(
-        format="%(asctime)-15s %(levelname)-8s [%(name)s] [%(module)s:%(funcName)s] %(message)s",
-        level=logging.DEBUG,
-    )
-    parser = argparse.ArgumentParser(description='Galactic sky scan')
+class LoggingArgumentParser(argparse.ArgumentParser):
+    def exit(self, status=0, message=None):
+        if message:
+            logging.error(message)
+        sys.exit(status)
+
+def parse_args(args, defaults={}):
+    parser = LoggingArgumentParser(description='Galactic sky scan')
     parser.add_argument('output_dir', metavar='DIRECTORY',
                         help='output directory to write scan results')
     parser.add_argument('--sdr-frequency', type=float,
@@ -123,7 +126,14 @@ def main(top_block_cls=radiotelescope, options=None):
             if 'bokeh' in kwargs:
                 del kwargs['bokeh']
             group.add_argument('--'+arg_name, **kwargs)
-    args = parser.parse_args()
+    parser.set_defaults(**defaults)
+    return parser.parse_args(args)
+
+def run(tb, args):
+    try:
+        os.mkdir(args.output_dir)
+    except OSError:
+        pass
 
     iterator_cls = {
         Mode.gal: survey_autoranging.longitude_iterator,
@@ -136,10 +146,18 @@ def main(top_block_cls=radiotelescope, options=None):
     if args.repeat:
         iterator = survey_autoranging.repeat(iterator, args.repeat)
 
-    try:
-        os.mkdir(args.output_dir)
-    except OSError:
-        pass
+    band=0
+    tb.client.set_band_rx(band, not args.ref)
+    survey_autoranging.run_survey(tb, savefolder=args.output_dir, int_time=args.int_time, darksky_offset=args.darksky_offset, iterator=iterator, args=args)
+    tb.client.set_band_rx(band, False)
+    tb.park()
+
+def main(top_block_cls=radiotelescope, options=None):
+    logging.basicConfig(
+        format="%(asctime)-15s %(levelname)-8s [%(name)s] [%(module)s:%(funcName)s] %(message)s",
+        level=logging.DEBUG,
+    )
+    args = parse_args(args)
 
     client = rci.client.Client(client_name='gal_scan')
     client.set_offsets(az_offset, el_offset)
@@ -162,11 +180,7 @@ def main(top_block_cls=radiotelescope, options=None):
     logging.info('Receiving ...')
 
     try:
-        band=0
-        client.set_band_rx(band, not args.ref)
-        survey_autoranging.run_survey(tb, savefolder=args.output_dir, int_time=args.int_time, darksky_offset=args.darksky_offset, iterator=iterator, args=args)
-        client.set_band_rx(band, False)
-        tb.park()
+        run(tb, args)
     finally:
         tb.stop()
         tb.wait()
