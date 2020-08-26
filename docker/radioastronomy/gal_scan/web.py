@@ -105,6 +105,7 @@ class SessionHandler(Handler):
         self.actions = collections.deque()
         self.actions_cv = threading.Condition()
         self.actions_exit = False
+        self.active_action = None
         self.actions_thread = threading.Thread(target=self.action_thread, name="radiotelescope")
         self.actions_thread.start()
 
@@ -116,12 +117,14 @@ class SessionHandler(Handler):
                     self.start_tb()
                     action = self.actions.popleft()
                     logging.info("Executing %s", action["name"])
+                    self.active_action = action
                     # Release the lock so that the deque can be inspected and appended
                     self.actions_cv.release()
                     try:
                         action["callable"]()
                     finally:
                         self.actions_cv.acquire()
+                        self.active_action = None
                 if self.actions_exit:
                     return
                 self.maybe_stop_tb()
@@ -130,11 +133,17 @@ class SessionHandler(Handler):
 
     def get_queue_data(self):
         with self.actions_cv:
-            return {
+            d = {
                 'time': [a['time'] for a in self.actions],
                 'user': ["" for a in self.actions],
                 'name': [a['name'] for a in self.actions],
             }
+            if self.active_action:
+                # TODO: Render active action differently (bold?)
+                d['time'] = [self.active_action['time']] + d['time']
+                d['user'] = [""] + d['user']
+                d['name'] = [self.active_action['name']] + d['name']
+            return d
 
     def enqueue_action(self, name, callable, allow_queue=False):
         with self.actions_cv:
@@ -361,6 +370,7 @@ class SessionHandler(Handler):
         start.on_click(on_start)
         automated = Panel(title="Plan", child=column(Tabs(tabs=automated_panels), row(load, save, start)))
 
+        # TODO: Show cancel buttons for active or queued actions
         queue_cds = ColumnDataSource(data={"time": [], "user": [], "name": []})
         queue_table = DataTable(
             source=queue_cds,
