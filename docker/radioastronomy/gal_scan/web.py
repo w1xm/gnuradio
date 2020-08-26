@@ -19,6 +19,7 @@ import logging
 import logging.handlers
 import socket
 import threading
+import time
 import rci.client
 import run
 from bokeh_models import Skymap, Knob, DownloadButton, UploadButton
@@ -116,11 +117,20 @@ class SessionHandler(Handler):
                 logging.debug("Waiting for next action")
                 self.actions_cv.wait()
 
+    def get_queue_data(self):
+        with self.actions_cv:
+            return {
+                'time': [a['time'] for a in self.actions],
+                'user': ["" for a in self.actions],
+                'name': [a['name'] for a in self.actions],
+            }
+
     def enqueue_action(self, name, callable):
         with self.actions_cv:
             if self.actions:
                 logging.info("Busy; enqueueing %s", name)
             self.actions.append({
+                'time': time.time(),
                 'name': name,
                 'callable': callable,
             })
@@ -312,11 +322,25 @@ class SessionHandler(Handler):
                 return JSON.stringify(out, null, 2);
                 """))
         start = Button(label="Start scan")
-        automated = Panel(title="Automated", child=column(Tabs(tabs=automated_panels), row(load, save, start)))
+        automated = Panel(title="Plan", child=column(Tabs(tabs=automated_panels), row(load, save, start)))
+
+        queue_cds = ColumnDataSource(data={"time": [], "user": [], "name": []})
+        queue_table = DataTable(
+            source=queue_cds,
+            columns=[
+                TableColumn(field="time", title="Time"),
+                TableColumn(field="user", title="User"),
+                TableColumn(field="name", title="Job"),
+            ],
+            aspect_ratio=2,
+            sizing_mode="stretch_width",
+            sortable=True,
+        )
+        queue = Panel(title="Queue", child=queue_table)
 
         controls = column(
             row(azimuth, elevation),
-            Tabs(tabs=[manual, automated]),
+            Tabs(tabs=[manual, automated, queue]),
             log_table)
 
         skymap = Skymap(height=600, sizing_mode="stretch_height")
@@ -351,6 +375,7 @@ class SessionHandler(Handler):
                     logging.info("RX disabled (50Ω load)")
                     rx.label = "RX disabled (50Ω load)"
                 rx.active = rx_active
+            queue_cds.data = self.get_queue_data()
             last_status.update(status)
 
         doc.add_periodic_callback(update_status, 200)
