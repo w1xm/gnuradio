@@ -205,8 +205,7 @@ class SessionHandler(Handler):
     def maybe_stop_tb(self):
         num_sessions = len(self.server_context.sessions)
         with self.actions_cv:
-            if self.started and not self.actions and not num_sessions:
-                # TODO: Check if a job is running
+            if self.started and not self.actions and not self.active_action and not num_sessions:
                 logging.info("Stopping flowgraph")
                 self.tb.stop()
                 self.started = False
@@ -233,7 +232,7 @@ class SessionHandler(Handler):
             self.tb.lock()
             self.tb.disconnect((self.mag_to_zW, 0), (sink, 0))
             self.tb.unlock()
-            logging.getLogger().removeHandler(lw)
+            logging.getLogger().removeHandler(blw)
         doc.on_session_destroyed(cleanup_session)
 
         doc.title = "Gal Scan GUI"
