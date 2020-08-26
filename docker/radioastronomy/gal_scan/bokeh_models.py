@@ -61,3 +61,8 @@ class UploadButton(FileInput, ButtonLike):
     label = String("", help="""
     The text label for the button to display.
     """)
+
+class ActiveButton(Button):
+    __implementation__ = "active_button.ts"
+
+    active = Bool(False)

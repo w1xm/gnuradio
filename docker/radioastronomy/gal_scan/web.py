@@ -28,7 +28,7 @@ from tornado.web import HTTPError
 from tornado.escape import xhtml_escape
 import rci.client
 import run
-from bokeh_models import Skymap, Knob, DownloadButton, UploadButton
+from bokeh_models import Skymap, Knob, DownloadButton, UploadButton, ActiveButton
 
 RUNS_DIR = "/runs/"
 
@@ -175,7 +175,7 @@ class SessionHandler(Handler):
 
     def set_rx(self, rx):
         self.enqueue_action(
-            name="set rx to %s" % rx,
+            name="set rx to %s" % "enabled" if rx else "disabled (50Ω load)",
             callable=functools.partial(self.client.set_band_rx, 0, rx),
         )
 
@@ -265,8 +265,8 @@ class SessionHandler(Handler):
         gain = Slider(title="gain", value=self.tb.get_sdr_gain(), start=0, end=65)
         gain.on_change('value', lambda name, old, new: self.set_gain(new))
 
-        rx = Toggle(label="RX enabled")
-        rx.on_click(self.set_rx)
+        rx = ActiveButton(label="RX enabled")
+        rx.on_click(lambda: self.set_rx(not rx.active))
 
         manual = Panel(title="Manual", child=column(
             row(rx, gain),
@@ -421,10 +421,8 @@ class SessionHandler(Handler):
             rx_active = status['Sequencer']['Bands'][0]['CommandRX']
             if not last_status or rx_active != last_status['Sequencer']['Bands'][0]['CommandRX']:
                 if rx_active:
-                    logging.info("RX enabled")
                     rx.label = "RX enabled"
                 else:
-                    logging.info("RX disabled (50Ω load)")
                     rx.label = "RX disabled (50Ω load)"
                 rx.active = rx_active
             queue_cds.data = self.get_queue_data()
