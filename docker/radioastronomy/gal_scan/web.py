@@ -4,7 +4,7 @@ from bokeh.application.application import Application
 from bokeh.application.handlers.handler import Handler
 from bokeh.events import Tap
 from bokeh.layouts import column, row, grid
-from bokeh.models import CustomJS, Button, ColumnDataSource, Spinner, Slider, Select, TextInput, DataTable, TableColumn, Panel, Tabs, Toggle, RadioButtonGroup
+from bokeh.models import CustomJS, Button, ColumnDataSource, Spinner, Slider, Select, TextInput, DataTable, TableColumn, Panel, Tabs, Toggle, RadioButtonGroup, HTMLTemplateFormatter
 from bokeh.server.server import Server
 from bokeh.plotting import curdoc
 from bokeh.util import logconfig
@@ -375,9 +375,24 @@ class SessionHandler(Handler):
         )
         queue = Panel(title="Queue", child=queue_table)
 
+        results_cds = ColumnDataSource(data={"name": []})
+        results_table = DataTable(
+            source=results_cds,
+            columns=[
+                TableColumn(
+                    field="name", title="Name",
+                    formatter=HTMLTemplateFormatter(template='<a href="/runs/<%= value %>/" target="_blank"><%= value %></a>')
+                ),
+            ],
+            aspect_ratio=2,
+            sizing_mode="stretch_width",
+            sortable=True,
+        )
+        results = Panel(title="Results", child=results_table)
+
         controls = column(
             row(azimuth, elevation),
-            Tabs(tabs=[manual, automated, queue]),
+            Tabs(tabs=[manual, automated, queue, results]),
             log_table)
 
         skymap = Skymap(height=600, sizing_mode="stretch_height")
@@ -413,6 +428,9 @@ class SessionHandler(Handler):
                     rx.label = "RX disabled (50Ω load)"
                 rx.active = rx_active
             queue_cds.data = self.get_queue_data()
+            results_cds.data = {
+                "name": list(sorted(os.listdir(self.runs_dir), reverse=True)),
+            }
             last_status.update(status)
 
         doc.add_periodic_callback(update_status, 200)
