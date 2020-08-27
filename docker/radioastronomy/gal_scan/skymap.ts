@@ -87,6 +87,7 @@ export class SkymapView extends LayoutDOMView {
       'showplanets': true,
       'showstarlabels': true,
       'gridlines_az': true,
+      'gridlines_gal': true,
       'showgalaxy': true,
       'mouse': false,
       'objects': 'https://slowe.github.io/VirtualSky/messier.json',
