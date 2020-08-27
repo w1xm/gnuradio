@@ -313,7 +313,7 @@ class SessionHandler(Handler):
                     bokeh_args['value'] = str(bokeh_args['value'])
                 elif arg.get('action') in ('store_true', 'store_false'):
                     type = Select
-                    bokeh_args['options'] = [(0, 'False'), (1, 'True')]
+                    bokeh_args['options'] = [('0', 'False'), ('1', 'True')]
                     bokeh_args['value'] = str(int(bokeh_args['value']))
                     bokeh_args['tags'] = ['boolean'] + bokeh_args.get('tags', [])
                 m = type(**bokeh_args)
