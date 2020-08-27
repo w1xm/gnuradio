@@ -30,10 +30,11 @@ RUN pybombs -v install --print-tree gr-osmosdr && rm -rf /pybombs/src/
 COPY recipes/ /pybombs/.pybombs/recipes/
 
 # Use GR 3.8 gr-bokehgui
+ARG bokeh_version=2.2.0
 ARG bokehgui_rev=w1xm
 RUN pybombs config -P gr-bokehgui source git+https://github.com/w1xm/gr-bokehgui && pybombs config -P gr-bokehgui gitrev $bokehgui_rev && \
     sed -i 's/pip: dateutil/deb: python3-dateutil/' ~/.pybombs/recipes/gr-recipes/dateutil.lwr && sed -i 's/pip: tornado/deb: python3-tornado/' ~/.pybombs/recipes/gr-recipes/tornado.lwr && \
-    pip3 install bokeh && \
+    pip3 install bokeh==$bokeh_version && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y python-dateutil python3-dateutil net-tools nodejs && \
     pybombs -v install --print-tree gr-bokehgui && rm -rf /pybombs/src/
 
