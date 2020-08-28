@@ -255,7 +255,6 @@ class SessionHandler(Handler):
         azimuth = Knob(title="Azimuth", max=360, min=0, unit="°")
         elevation = Knob(title="Elevation", max=360, min=0, unit="°")
 
-        # TODO: Autoscale columns
         log_table = SortedDataTable(
             source=log_cds,
             columns=[
@@ -263,7 +262,7 @@ class SessionHandler(Handler):
                 TableColumn(field="levelname", title="Level"),
                 TableColumn(field="message", title="Message"),
             ],
-            fit_columns=True,
+            autosize_mode="fit_viewport",
             aspect_ratio=2,
             sizing_mode="stretch_width",
             sortable=True,
