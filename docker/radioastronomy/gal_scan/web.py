@@ -4,7 +4,7 @@ from bokeh.application.application import Application
 from bokeh.application.handlers.handler import Handler
 from bokeh.events import Tap
 from bokeh.layouts import column, row, grid
-from bokeh.models import CustomJS, Button, ColumnDataSource, Spinner, Slider, Select, TextInput, DataTable, TableColumn, Panel, Tabs, Toggle, RadioButtonGroup, HTMLTemplateFormatter
+from bokeh.models import CustomJS, Button, ColumnDataSource, Spinner, Slider, Select, TextInput, DataTable, TableColumn, Panel, Tabs, Toggle, RadioButtonGroup, DateFormatter, HTMLTemplateFormatter
 from bokeh.server.server import Server
 from bokeh.plotting import curdoc
 from bokeh.util import logconfig
@@ -134,13 +134,13 @@ class SessionHandler(Handler):
     def get_queue_data(self):
         with self.actions_cv:
             d = {
-                'time': [a['time'] for a in self.actions],
+                'time': [int(a['time']*1000) for a in self.actions],
                 'user': ["" for a in self.actions],
                 'name': [a['name'] for a in self.actions],
             }
             if self.active_action:
                 # TODO: Render active action differently (bold?)
-                d['time'] = [self.active_action['time']] + d['time']
+                d['time'] = [int(self.active_action['time']*1000)] + d['time']
                 d['user'] = [""] + d['user']
                 d['name'] = [self.active_action['name']] + d['name']
             return d
@@ -372,25 +372,33 @@ class SessionHandler(Handler):
         queue_table = DataTable(
             source=queue_cds,
             columns=[
-                TableColumn(field="time", title="Time"),
+                TableColumn(
+                    field="time", title="Time",
+                    formatter=DateFormatter(format="%Y-%m-%d %H:%M:%S"),
+                ),
                 TableColumn(field="user", title="User"),
                 TableColumn(field="name", title="Job"),
             ],
+            autosize_mode="fit_viewport",
             aspect_ratio=2,
             sizing_mode="stretch_width",
-            sortable=True,
         )
         queue = Panel(title="Queue", child=queue_table)
 
-        results_cds = ColumnDataSource(data={"name": []})
-        results_table = DataTable(
+        results_cds = ColumnDataSource(data={"name": [], "mtime": []})
+        results_table = SortedDataTable(
             source=results_cds,
             columns=[
+                TableColumn(
+                    field="mtime", title="Time",
+                    formatter=DateFormatter(format="%Y-%m-%d %H:%M:%S"),
+                ),
                 TableColumn(
                     field="name", title="Name",
                     formatter=HTMLTemplateFormatter(template='<a href="/runs/<%= value %>/" target="_blank"><%= value %></a>')
                 ),
             ],
+            autosize_mode="fit_viewport",
             aspect_ratio=2,
             sizing_mode="stretch_width",
             sortable=True,
@@ -433,9 +441,12 @@ class SessionHandler(Handler):
                     rx.label = "RX disabled (50Ω load)"
                 rx.active = rx_active
             queue_cds.data = self.get_queue_data()
-            results_cds.data = {
-                "name": list(sorted(os.listdir(self.runs_dir), reverse=True)),
-            }
+            with os.scandir(self.runs_dir) as it:
+                files = list(sorted(it, reverse=True, key=lambda f: f.stat().st_mtime))
+                results_cds.data = {
+                    "name": [f.name for f in files],
+                    "mtime": [int(f.stat().st_mtime*1000) for f in files],
+                }
             last_status.update(status)
 
         doc.add_periodic_callback(update_status, 200)
