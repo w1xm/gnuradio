@@ -28,7 +28,7 @@ from tornado.web import HTTPError
 from tornado.escape import xhtml_escape
 import rci.client
 import run
-from bokeh_models import Skymap, Knob, DownloadButton, UploadButton, ActiveButton
+from bokeh_models import Skymap, Knob, DownloadButton, UploadButton, ActiveButton, SortedDataTable
 
 RUNS_DIR = "/runs/"
 
@@ -184,7 +184,7 @@ class SessionHandler(Handler):
 
     def set_rx(self, rx):
         self.enqueue_action(
-            name="set rx to %s" % "enabled" if rx else "disabled (50Ω load)",
+            name="set rx to %s" % ("enabled" if rx else "disabled (50Ω load)"),
             callable=functools.partial(self.client.set_band_rx, 0, rx),
         )
 
@@ -255,9 +255,8 @@ class SessionHandler(Handler):
         azimuth = Knob(title="Azimuth", max=360, min=0, unit="°")
         elevation = Knob(title="Elevation", max=360, min=0, unit="°")
 
-        # TODO: Automatically sort by asctime descending
         # TODO: Autoscale columns
-        log_table = DataTable(
+        log_table = SortedDataTable(
             source=log_cds,
             columns=[
                 TableColumn(field="asctime", title="Time"),

@@ -1,7 +1,7 @@
-from bokeh.core.properties import Angle, Tuple, Bool, Int, Float, String, Instance
+from bokeh.core.properties import Angle, Tuple, Bool, Int, Float, String, Instance, Override
 from bokeh.io import show
 from bokeh.model import Model
-from bokeh.models import CustomJS, ColumnDataSource, LayoutDOM, HTMLBox, Button, FileInput, ButtonLike
+from bokeh.models import CustomJS, DataTable, LayoutDOM, HTMLBox, Button, FileInput, ButtonLike
 import bokeh.util.compiler
 from bokeh.util.compiler import TypeScript
 
@@ -57,3 +57,6 @@ class UploadButton(FileInput, ButtonLike):
 
 class ActiveButton(Button):
     active = Bool(False)
+
+class SortedDataTable(DataTable):
+    sortable = Override(default=True)

@@ -17,8 +17,8 @@ RUN pip3 install py-spy
 COPY flowgraph.grc /src/
 WORKDIR /flowgraph/
 RUN . /pybombs/setup_env.sh && grcc -o /flowgraph /src/flowgraph.grc
-COPY *.py /flowgraph/
 COPY bokeh_models /flowgraph/bokeh_models
 RUN cd bokeh_models && bokeh build
+COPY *.py /flowgraph/
 
 CMD /flowgraph/run.py
