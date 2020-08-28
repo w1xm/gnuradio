@@ -1,0 +1,12 @@
+{
+  "name": "bokeh_models",
+  "version": "0.0.1",
+  "description": "",
+  "license": "BSD-3-Clause",
+  "keywords": [],
+  "repository": {},
+  "dependencies": {
+    "@bokeh/bokehjs": "^2.2.0"
+  },
+  "devDependencies": {}
+}

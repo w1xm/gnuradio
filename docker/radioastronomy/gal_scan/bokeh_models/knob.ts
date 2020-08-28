@@ -1,13 +1,13 @@
 // -*- mode: typescript; typescript-indent-level: 2 -*-
-import {HTMLBox, HTMLBoxView} from "models/layouts/html_box"
-import {div, label} from "core/dom"
+import {HTMLBox, HTMLBoxView} from "@bokehjs/models/layouts/html_box"
+import {div, label} from "@bokehjs/core/dom"
 // Bokeh doesn't provide type information for css files
 // @ts-ignore
-import inputs_css from "styles/widgets/inputs.css"
+import inputs_css from "@bokehjs/styles/widgets/inputs.css"
 // @ts-ignore
 import knob_css from "./knob.css"
-import {bk_input_group} from "styles/widgets/inputs"
-import * as p from "core/properties"
+import {bk_input_group} from "@bokehjs/styles/widgets/inputs"
+import * as p from "@bokehjs/core/properties"
 
 // To create custom model extensions that will render on to the HTML canvas
 // or into the DOM, we must create a View subclass for the model.
@@ -297,6 +297,7 @@ export interface Knob extends Knob.Attrs {}
 export class Knob extends HTMLBox {
   properties: Knob.Props
   __view_type__: KnobView
+  static __module__ = "bokeh_models"
 
   constructor(attrs?: Partial<Knob.Attrs>) {
     super(attrs)

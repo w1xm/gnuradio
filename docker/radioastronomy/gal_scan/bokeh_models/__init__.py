@@ -15,7 +15,6 @@ def nodejs_compile(code, lang="javascript", file=None):
 bokeh.util.compiler.nodejs_compile = nodejs_compile
 
 class Skymap(LayoutDOM):
-    __implementation__ = "skymap.ts"
     __javascript__ = [
         "https://slowe.github.io/VirtualSky/stuquery.min.js",
         "https://slowe.github.io/VirtualSky/virtualsky.min.js",
@@ -35,8 +34,6 @@ class Skymap(LayoutDOM):
     targetAzel = Tuple(Angle, Angle)
 
 class Knob(HTMLBox):
-    __implementation__ = "knob.ts"
-
     title = String(default="")
     value = Float(default=0)
     writable = Bool(default=False)
@@ -49,20 +46,14 @@ class Knob(HTMLBox):
     active = Bool(default=True)
 
 class DownloadButton(Button):
-    __implementation__ = "download_button.ts"
-
     data = Instance(CustomJS)
     filename = String(default="data.bin")
     mime_type = String(default="application/octet-stream")
 
 class UploadButton(FileInput, ButtonLike):
-    __implementation__ = "upload_button.ts"
-
     label = String("", help="""
     The text label for the button to display.
     """)
 
 class ActiveButton(Button):
-    __implementation__ = "active_button.ts"
-
     active = Bool(False)

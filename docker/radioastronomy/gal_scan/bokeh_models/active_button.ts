@@ -1,8 +1,8 @@
-import {Button, ButtonView} from "models/widgets/button"
-import {classes} from "core/dom"
-import * as p from "core/properties"
+import {Button, ButtonView} from "@bokehjs/models/widgets/button"
+import {classes} from "@bokehjs/core/dom"
+import * as p from "@bokehjs/core/properties"
 
-import {bk_active} from "styles/mixins"
+import {bk_active} from "@bokehjs/styles/mixins"
 
 export class ActiveButtonView extends ButtonView {
   model: ActiveButton
@@ -35,6 +35,7 @@ export interface ActiveButton extends ActiveButton.Attrs {}
 export class ActiveButton extends Button {
   properties: ActiveButton.Props
   __view_type__: ActiveButtonView
+  static __module__ = "bokeh_models"
 
   constructor(attrs?: Partial<Button.Attrs>) {
     super(attrs)

@@ -1,6 +1,6 @@
-import {Button, ButtonView} from "models/widgets/button"
-import {CallbackLike0} from "models/callbacks/callback"
-import * as p from "core/properties"
+import {Button, ButtonView} from "@bokehjs/models/widgets/button"
+import {CallbackLike0} from "@bokehjs/models/callbacks/callback"
+import * as p from "@bokehjs/core/properties"
 
 export class DownloadButtonView extends ButtonView {
   model: DownloadButton
@@ -43,6 +43,7 @@ export interface DownloadButton extends DownloadButton.Attrs {}
 export class DownloadButton extends Button {
   properties: DownloadButton.Props
   __view_type__: DownloadButtonView
+  static __module__ = "bokeh_models"
 
   constructor(attrs?: Partial<Button.Attrs>) {
     super(attrs)

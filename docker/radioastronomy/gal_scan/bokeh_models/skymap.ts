@@ -1,8 +1,8 @@
 // -*- mode: typescript; typescript-indent-level: 2 -*-
-import {LayoutDOM, LayoutDOMView} from "models/layouts/layout_dom"
-import {LayoutItem} from "core/layout"
-import {Tap} from "core/bokeh_events"
-import * as p from "core/properties"
+import {LayoutDOM, LayoutDOMView} from "@bokehjs/models/layouts/layout_dom"
+import {LayoutItem} from "@bokehjs/core/layout"
+import {Tap} from "@bokehjs/core/bokeh_events"
+import * as p from "@bokehjs/core/properties"
 
 declare namespace S {
   class VirtualSky {
@@ -232,6 +232,7 @@ export interface Skymap extends Skymap.Attrs {}
 export class Skymap extends LayoutDOM {
   properties: Skymap.Props
   __view_type__: SkymapView
+  static __module__ = "bokeh_models"
 
   constructor(attrs?: Partial<Skymap.Attrs>) {
     super(attrs)

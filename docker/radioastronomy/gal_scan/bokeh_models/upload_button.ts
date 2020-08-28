@@ -1,10 +1,10 @@
-import {bk_btn, bk_btn_group, bk_btn_type} from "styles/buttons"
-import {FileInput, FileInputView} from "models/widgets/file_input"
-import {div, label} from "core/dom"
-import {ButtonType} from "core/enums"
-import * as p from "core/properties"
-
-import "./upload_button.less"
+import {bk_btn, bk_btn_group, bk_btn_type} from "@bokehjs/styles/buttons"
+import {FileInput, FileInputView} from "@bokehjs/models/widgets/file_input"
+import {div, label} from "@bokehjs/core/dom"
+import {ButtonType} from "@bokehjs/core/enums"
+import * as p from "@bokehjs/core/properties"
+// @ts-ignore
+import upload_button_css from "./upload_button.css"
 
 export class UploadButtonView extends FileInputView {
   model: UploadButton
@@ -13,6 +13,10 @@ export class UploadButtonView extends FileInputView {
   protected groupEl: HTMLElement
 
   private static _id_seq = 0
+
+  styles(): string[] {
+    return [...super.styles(), upload_button_css]
+  }
 
   render(): void {
     super.render()
@@ -45,6 +49,7 @@ export interface UploadButton extends UploadButton.Attrs {}
 export class UploadButton extends FileInput {
   properties: UploadButton.Props
   __view_type__: UploadButtonView
+  static __module__ = "bokeh_models"
 
   constructor(attrs?: Partial<FileInput.Attrs>) {
     super(attrs)
