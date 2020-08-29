@@ -137,12 +137,14 @@ class SessionHandler(Handler):
                 'time': [int(a['time']*1000) for a in self.actions],
                 'user': ["" for a in self.actions],
                 'name': [a['name'] for a in self.actions],
+                'active': [False for a in self.actions],
             }
             if self.active_action:
                 # TODO: Render active action differently (bold?)
-                d['time'] = [int(self.active_action['time']*1000)] + d['time']
-                d['user'] = [""] + d['user']
-                d['name'] = [self.active_action['name']] + d['name']
+                d['time'].insert(0, int(self.active_action['time']*1000))
+                d['user'].insert(0, "")
+                d['name'].insert(0, self.active_action['name'])
+                d['active'].insert(0, True)
             return d
 
     def enqueue_action(self, name, callable, allow_queue=False):
@@ -368,8 +370,8 @@ class SessionHandler(Handler):
         automated = Panel(title="Plan", child=column(Tabs(tabs=automated_panels), row(load, save, start)))
 
         # TODO: Show cancel buttons for active or queued actions
-        queue_cds = ColumnDataSource(data={"time": [], "user": [], "name": []})
-        queue_table = DataTable(
+        queue_cds = ColumnDataSource(data=self.get_queue_data())
+        queue_table = SortedDataTable(
             source=queue_cds,
             columns=[
                 TableColumn(
@@ -379,6 +381,8 @@ class SessionHandler(Handler):
                 TableColumn(field="user", title="User"),
                 TableColumn(field="name", title="Job"),
             ],
+            highlight_field="active",
+            sort_ascending=True,
             autosize_mode="fit_viewport",
             aspect_ratio=2,
             sizing_mode="stretch_width",
@@ -440,13 +444,17 @@ class SessionHandler(Handler):
                 else:
                     rx.label = "RX disabled (50Ω load)"
                 rx.active = rx_active
-            queue_cds.data = self.get_queue_data()
+            queue_data = self.get_queue_data()
+            if queue_cds.data != queue_data:
+                queue_cds.data = queue_data
             with os.scandir(self.runs_dir) as it:
                 files = list(sorted(it, reverse=True, key=lambda f: f.stat().st_mtime))
-                results_cds.data = {
+                results_data = {
                     "name": [f.name for f in files],
                     "mtime": [int(f.stat().st_mtime*1000) for f in files],
                 }
+                if results_data != results_cds.data:
+                    results_cds.data = results_data
             last_status.update(status)
 
         doc.add_periodic_callback(update_status, 200)

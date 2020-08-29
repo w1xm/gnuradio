@@ -60,3 +60,5 @@ class ActiveButton(Button):
 
 class SortedDataTable(DataTable):
     sortable = Override(default=True)
+    highlight_field = String()
+    sort_ascending = Bool(False)
