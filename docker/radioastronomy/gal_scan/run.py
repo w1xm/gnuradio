@@ -12,6 +12,7 @@ import sys
 import time
 from enum import Enum
 import survey_autoranging
+from survey_autoranging import AZ_OFFSET, EL_OFFSET
 
 ##################################################
 ##################################################
@@ -20,8 +21,6 @@ import survey_autoranging
 ##################################################
 ##################################################
 ##################################################
-az_offset=5.5
-el_offset=-5.5
 import rci.client
 
 from flowgraph import flowgraph
@@ -160,7 +159,7 @@ def main(top_block_cls=radiotelescope, options=None):
     args = parse_args(args)
 
     client = rci.client.Client(client_name='gal_scan')
-    client.set_offsets(az_offset, el_offset)
+    client.set_offsets(AZ_OFFSET, EL_OFFSET)
 
     tbkwargs = {}
     if args.sdr_frequency:

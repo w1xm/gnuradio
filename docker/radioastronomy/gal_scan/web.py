@@ -93,7 +93,7 @@ class SessionHandler(Handler):
     def on_server_loaded(self, server_context):
         self.server_context = server_context
         self.client = rci.client.Client(client_name='gal_scan')
-        self.client.set_offsets(run.az_offset, run.el_offset)
+        self.client.set_offsets(run.AZ_OFFSET, run.EL_OFFSET)
 
         self.tb = run.radiotelescope(client=self.client)
         self.mag_to_zW = blocks.multiply_const_vff([1e18] * self.tb.get_num_channels())
@@ -122,6 +122,8 @@ class SessionHandler(Handler):
                     self.actions_cv.release()
                     try:
                         action["callable"]()
+                    except:
+                        logging.exception("Exception while running %s", action["name"])
                     finally:
                         self.actions_cv.acquire()
                         self.active_action = None

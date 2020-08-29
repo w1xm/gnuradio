@@ -535,8 +535,10 @@ def structured_to_unstructured(a):
 def remove_pointing_error(all_data, max_pointing_error):
     if max_pointing_error is not None and set(all_data.colnames).issuperset(('azimuth', 'elevation', 'rci_azimuth', 'rci_elevation')):
         count = len(all_data)
-        cmd_pos = structured_to_unstructured(all_data[['azimuth', 'elevation']])
+        cmd_pos = u.Quantity(structured_to_unstructured(all_data[['azimuth', 'elevation']]))
+        cmd_pos[cmd_pos[:,1] > 180*u.degree, 1] -= 360*u.degree
         obs_pos = structured_to_unstructured(all_data[['rci_azimuth', 'rci_elevation']])
+        obs_pos[obs_pos[:,1] > 180*u.degree, 1] -= 360*u.degree
         all_data['bad'] = np.linalg.norm(cmd_pos-obs_pos, axis=1) < max_pointing_error
 
         # TODO: Just leave the bad rows in all_data and have normalize_data filter them out?

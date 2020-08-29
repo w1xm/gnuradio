@@ -23,6 +23,9 @@ from astropy.coordinates import SkyCoord
 from astropy import units as u
 from astropy.table import QTable, Column
 
+AZ_OFFSET=5.5
+EL_OFFSET=-5.5
+
 class iterator(object):
     """iterator emits a series of SkyCoord objects that represent observation positions."""
     def __init__(self, start, stop, step, **kwargs):
@@ -138,13 +141,13 @@ def run_survey(tb, savefolder, iterator, args, int_time=30, darksky_offset=0, re
                 if darksky and not darksky_offset:
                     continue
                 apytime=get_time()
-                pos.obstime = apytime
-                pos.location = radome_observer.location
+                #pos.obstime = apytime
+                #pos.location = radome_observer.location
                 pos_altaz = pos.transform_to(altaz_frame(apytime))
                 if darksky:
                     pos_altaz = directional_offset_by(pos_altaz, 90*u.degree, darksky_offset*u.degree)
                     pos = pos_altaz
-                if pos_altaz.alt < 0:
+                if pos_altaz.alt < EL_OFFSET*u.degree:
                     logger.warning("Can't observe at %s; target is below the horizon", pos)
                     continue
                 tb.point(pos_altaz.az.degree, pos_altaz.alt.degree)
@@ -176,7 +179,7 @@ def run_survey(tb, savefolder, iterator, args, int_time=30, darksky_offset=0, re
 
                 vel_range = None
                 if ref_frequency is not None:
-                    vel_range=freqs_to_vel(ref_frequency, freq_range.to(u.MHz), pos)
+                    vel_range=freqs_to_vel(ref_frequency, freq_range.to(u.MHz), pos_altaz)
                     row['vels'] = vel_range
 
                 all_data.append(row)
@@ -200,8 +203,11 @@ def run_survey(tb, savefolder, iterator, args, int_time=30, darksky_offset=0, re
                 logger.info('Data logged.')
 
     finally:
-        all_data = QTable(all_data)
+        if not all_data:
+            logger.warning('No observations found! Not saving data.')
+        else:
+            all_data = QTable(all_data)
 
-        plot.save_data(all_data, savefolder)
+            plot.save_data(all_data, savefolder)
 
-        plot.plot(all_data, savefolder=savefolder)
+            plot.plot(all_data, savefolder=savefolder)
