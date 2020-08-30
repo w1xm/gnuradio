@@ -22,7 +22,6 @@ export class SortedDataTableView extends DataTableView {
 
   render(): void {
     super.render()
-    this.grid.autosizeColumns()
     const columns = this.grid.getColumns()
     const to_sort = [{
       sortCol: {

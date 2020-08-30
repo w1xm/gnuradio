@@ -264,11 +264,11 @@ class SessionHandler(Handler):
         log_table = SortedDataTable(
             source=log_cds,
             columns=[
-                TableColumn(field="asctime", title="Time"),
-                TableColumn(field="levelname", title="Level"),
-                TableColumn(field="message", title="Message"),
+                TableColumn(field="asctime", title="Time", width=140),
+                TableColumn(field="levelname", title="Level", width=60),
+                TableColumn(field="message", title="Message", width=1500),
             ],
-            autosize_mode="fit_viewport",
+            autosize_mode="none",
             aspect_ratio=2,
             sizing_mode="stretch_width",
             sortable=True,
