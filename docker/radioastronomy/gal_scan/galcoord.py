@@ -70,10 +70,10 @@ def freqs_to_vel(center_freq, fs, sc):
     # v_bary is now barycentric; now we need to remove the solar system motion as well
     return (v_bary + v_proj)
 
-def altaz_frame(time=None):
+def altaz_frame(time=None, obswl=None):
     if not time:
         time=Time.now()
-    return radome_observer.altaz(time)
+    return radome_observer.altaz(time, obswl=obswl)
 
 def get_time():
     time=Time.now()

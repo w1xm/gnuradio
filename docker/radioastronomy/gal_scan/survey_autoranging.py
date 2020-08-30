@@ -8,7 +8,6 @@ from galcoord import HYDROGEN_FREQ
 from galcoord import radome_observer
 from galcoord import altaz_frame
 from galcoord import freqs_to_vel
-from galcoord import gal_to_altaz
 from galcoord import directional_offset_by
 import numpy as np
 from galcoord import get_time
@@ -143,7 +142,7 @@ def run_survey(tb, savefolder, iterator, args, int_time=30, darksky_offset=0, re
                 apytime=get_time()
                 #pos.obstime = apytime
                 #pos.location = radome_observer.location
-                pos_altaz = pos.transform_to(altaz_frame(apytime))
+                pos_altaz = pos.transform_to(altaz_frame(apytime, obswl=freq.to(u.cm, u.spectral())))
                 if darksky:
                     pos_altaz = directional_offset_by(pos_altaz, 90*u.degree, darksky_offset*u.degree)
                     pos = pos_altaz

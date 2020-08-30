@@ -27,7 +27,9 @@ import tornado.web
 from tornado.web import HTTPError
 from tornado.escape import xhtml_escape
 import rci.client
+from galcoord import radome_observer
 import run
+from weather import Weather
 from bokeh_models import Skymap, Knob, DownloadButton, UploadButton, ActiveButton, SortedDataTable
 
 RUNS_DIR = "/runs/"
@@ -484,6 +486,12 @@ class DirectoryHandler(tornado.web.RequestHandler):
             return self.finish(html + '</ul><hr>')
         raise HTTPError(404, "%s does not exist", relative_path)
 
+def wx_received(wx):
+    # TODO: Does this need locking?
+    radome_observer.temperature = wx['temperature']
+    radome_observer.relative_humidity = wx['relative_humidity']
+    radome_observer.pressure = wx['pressure']
+
 if __name__ == '__main__':
     logconfig.basicConfig(
         format="%(asctime)-15s %(levelname)-8s [%(name)s] [%(module)s:%(funcName)s] %(message)s",
@@ -492,6 +500,7 @@ if __name__ == '__main__':
     os.makedirs(RUNS_DIR, exist_ok=True)
     lw = LogWatcher()
     logging.getLogger().addHandler(lw)
+    wx = Weather(callback=wx_received)
     server = Server(
         {'/': Application(SessionHandler(lw=lw, runs_dir=RUNS_DIR))},
         allow_websocket_origin=[socket.getfqdn().lower()+":5006"],

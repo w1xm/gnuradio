@@ -12,7 +12,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -y \
     python-is-python3 \
     npm
 
-RUN pip3 install py-spy
+RUN pip3 install py-spy aprslib
 
 COPY flowgraph.grc /src/
 WORKDIR /flowgraph/
