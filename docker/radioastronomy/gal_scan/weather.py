@@ -11,9 +11,11 @@ class Weather:
     def __init__(self, callback, station="KB1DML"):
         self.callback = callback
         self.station = station
-        self.ais = aprslib.IS("W1XM-RT", host="cwop.aprs.net", port=14580)
-        self.ais.set_filter("b/"+station)
         self._fetch_latest()
+
+    def start(self):
+        self.ais = aprslib.IS("W1XM-RT", host="cwop.aprs.net", port=14580)
+        self.ais.set_filter("b/"+self.station)
         self.wx_thread = threading.Thread(target=self._run, name="weather", daemon=True)
         self.wx_thread.start()
 
@@ -57,4 +59,5 @@ if __name__ == '__main__':
     def callback(wx):
         print(wx)
     w = Weather(callback)
+    w.start()
     w.wx_thread.join()

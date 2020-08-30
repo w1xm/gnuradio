@@ -338,6 +338,8 @@ class SessionHandler(Handler):
         def on_load(attr, old, new):
             data = json.loads(base64.b64decode(new))
             for key, value in data.items():
+                if isinstance(run_models[key], Select):
+                    value = str(value)
                 run_models[key].value = value
         load.on_change('value', on_load)
 
@@ -491,6 +493,7 @@ def wx_received(wx):
     radome_observer.temperature = wx['temperature']
     radome_observer.relative_humidity = wx['relative_humidity']
     radome_observer.pressure = wx['pressure']
+    logging.info("Performing refraction correction for %s %s %s", radome_observer.temperature, radome_observer.relative_humidity, radome_observer.pressure)
 
 if __name__ == '__main__':
     logconfig.basicConfig(
@@ -501,6 +504,7 @@ if __name__ == '__main__':
     lw = LogWatcher()
     logging.getLogger().addHandler(lw)
     wx = Weather(callback=wx_received)
+    wx.start()
     server = Server(
         {'/': Application(SessionHandler(lw=lw, runs_dir=RUNS_DIR))},
         allow_websocket_origin=[socket.getfqdn().lower()+":5006"],

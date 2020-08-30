@@ -68,7 +68,7 @@ class longitude_iterator(iterator):
 
 class azimuth_iterator(iterator):
     def translate(self, az):
-        return SkyCoord(az=az*u.degree, alt=0*u.degree, frame=altaz_frame())
+        return SkyCoord(az=az*u.degree, alt=0*u.degree, frame='altaz')
 
     def format_filename(self, pos):
         return 'az_%05.1f' % (pos['azimuth'].degree,)
@@ -140,14 +140,18 @@ def run_survey(tb, savefolder, iterator, args, int_time=30, darksky_offset=0, re
                 if darksky and not darksky_offset:
                     continue
                 apytime=get_time()
-                #pos.obstime = apytime
-                #pos.location = radome_observer.location
-                pos_altaz = pos.transform_to(altaz_frame(apytime, obswl=freq.to(u.cm, u.spectral())))
+                aaf = altaz_frame(apytime, obswl=freq.to(u.cm, u.spectral()))
+                if pos.frame.name == 'altaz':
+                    # Replace altaz frame with one that has obstime and location
+                    pos = SkyCoord(pos, frame=aaf)
+                    pos_altaz = pos
+                else:
+                    pos_altaz = pos.transform_to(aaf)
                 if darksky:
                     pos_altaz = directional_offset_by(pos_altaz, 90*u.degree, darksky_offset*u.degree)
                     pos = pos_altaz
                 if pos_altaz.alt < EL_OFFSET*u.degree:
-                    logger.warning("Can't observe at %s; target is below the horizon", pos)
+                    logger.warning("Can't observe at %s; target alt %s is below the horizon", pos, pos_altaz.alt)
                     continue
                 tb.point(pos_altaz.az.degree, pos_altaz.alt.degree)
 
@@ -162,6 +166,9 @@ def run_survey(tb, savefolder, iterator, args, int_time=30, darksky_offset=0, re
                     'data': data,
                     'freqs': freq_range,
                     'time': apytime.value*u.second,
+                    'temperature': pos_altaz.frame.temperature,
+                    'relative_humidity': pos_altaz.frame.relative_humidity,
+                    'pressure': pos_altaz.frame.pressure,
                     'azimuth': pos_altaz.az,
                     'elevation': pos_altaz.alt,
                     'longitude': pos.galactic.l,
