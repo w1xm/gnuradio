@@ -7,7 +7,7 @@ import * as p from "@bokehjs/core/properties"
 declare namespace S {
   class VirtualSky {
     resize(): void
-    addPointer(OPTIONS: object): number
+    addPointer(pointer: S.pointer): number
     col: any
     highlight: (i: number) => void
     setLatitude(latitude: number): void
@@ -44,8 +44,12 @@ declare namespace S {
   interface pointer {
     ra: number
     dec: number
-    colour: any
-    d: any
+    d?: number
+    label?: string
+    colour?: string
+    img?: string
+    url?: string
+    credit?: string
   }
 
   interface radec {
@@ -131,15 +135,18 @@ export class SkymapView extends LayoutDOMView {
 	  // Draw a crosshair
 	  const c = this.ctx;
 	  c.beginPath();
-	  c.strokeStyle = p.colour;
-	  c.moveTo(pos.x-p.d, pos.y);
+	  if (p.colour) {
+	    c.strokeStyle = p.colour;
+	  }
+	  const d = p.d || 5
+	  c.moveTo(pos.x-d, pos.y);
 	  c.lineTo(pos.x-1, pos.y);
 	  c.moveTo(pos.x+1, pos.y);
-	  c.lineTo(pos.x+p.d, pos.y);
-	  c.moveTo(pos.x, pos.y-p.d);
+	  c.lineTo(pos.x+d, pos.y);
+	  c.moveTo(pos.x, pos.y-d);
 	  c.lineTo(pos.x, pos.y-1);
 	  c.moveTo(pos.x, pos.y+1);
-	  c.lineTo(pos.x, pos.y+p.d);
+	  c.lineTo(pos.x, pos.y+d);
 	  c.stroke();
 	} else if (i == pointerStatus) {
 	  // Draw a circle
@@ -147,7 +154,9 @@ export class SkymapView extends LayoutDOMView {
 	  let radius = 5
 	  const c = this.ctx;
 	  c.beginPath();
-	  c.strokeStyle = p.colour;
+	  if (p.colour) {
+	    c.strokeStyle = p.colour;
+	  }
 	  c.arc(pos.x, pos.y, radius, 0, 2*Math.PI);
 	  c.stroke();
 	} else {
@@ -167,8 +176,6 @@ export class SkymapView extends LayoutDOMView {
     let radec = this._planetarium.azel2radec(azel[0]*this._planetarium.d2r, azel[1]*this._planetarium.d2r);
     this._planetarium.pointers[pointer].ra = radec.ra;
     this._planetarium.pointers[pointer].dec = radec.dec;
-    this._planetarium.resize();
-    this._planetarium.draw();
   }
 
   connect_signals(): void {
@@ -195,6 +202,8 @@ export class SkymapView extends LayoutDOMView {
     }
     this.updateAzel(this._pointerStatus, this.model.azel)
     this.updateAzel(this._pointerTarget, this.model.targetAzel)
+    this._planetarium.resize();
+    this._planetarium.draw();
   }
 
   get child_models(): LayoutDOM[] {
