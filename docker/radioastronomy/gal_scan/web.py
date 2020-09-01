@@ -195,6 +195,7 @@ class SessionHandler(Handler):
         )
 
     def on_server_unloaded(self, server_context):
+        logging.info("on_server_unloaded")
         self.actions_exit = True
         self.actions_cv.notify()
         self.actions_thread.join()

@@ -12,9 +12,12 @@ class Weather:
         self.callback = callback
         self.station = station
         self._fetch_latest()
+        logging.getLogger('aprslib.parsing').setLevel(logging.INFO)
+        logging.getLogger('aprslib.inet.IS').setLevel(logging.INFO)
+        logging.getLogger('chardet.charsetprober').setLevel(logging.INFO)
 
     def start(self):
-        self.ais = aprslib.IS("W1XM-RT", host="cwop.aprs.net", port=14580)
+        self.ais = aprslib.IS("W1XM-RT", host="cwop.mesowest.org", port=30010)
         self.ais.set_filter("b/"+self.station)
         self.wx_thread = threading.Thread(target=self._run, name="weather", daemon=True)
         self.wx_thread.start()
@@ -31,6 +34,9 @@ class Weather:
                 self.ais.close()
 
     def _rx_packet(self, packet):
+        # Unfortuately, the CWOP server does not actually support server-side filters, so we need to filter here as well.
+        if packet.get("from") != self.station:
+            return
         if "weather" not in packet:
             self.logger.debug("Ignoring non-weather packet %s", packet)
             return

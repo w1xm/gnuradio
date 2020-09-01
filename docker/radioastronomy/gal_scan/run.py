@@ -101,7 +101,7 @@ arg_groups = {
         'lon': dict(type=float, help='center galactic longitude', metavar='°',
                     bokeh=dict(low=0, high=360)),
         'rotation': dict(type=float, help='grid rotation', metavar='°'),
-        'rotation-frame': dict(default='iers', choices=('iers', 'galactic'), help='grid rotation frame'),
+        'rotation-frame': dict(default='icrs', choices=('icrs', 'galactic'), help='grid rotation frame'),
     },
 }
 
