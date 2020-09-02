@@ -32,34 +32,31 @@ class iterator(object):
         self.start = start
         self.stop = stop
         self.step = step
-        self.iter_source = np.arange(start, stop+step, step)
 
-    def __iter__(self):
-        self.iter = iter(self.iter_source)
-        return self
+    @property
+    def iter_source(self):
+        return np.arange(self.start, self.stop+self.step, self.step)
 
-    def __next__(self):
-        while True:
-            pos = next(self.iter)
-            translated = self.translate(pos)
-            if translated:
-                return translated
-    next = __next__
+    @property
+    def coords(self):
+        raise NotImplementedError('coords was not overridden')
 
 class repeat(object):
     def __init__(self, wrapped, count):
         self.wrapped = wrapped
         self.count = count
 
-    def __iter__(self):
-        return itertools.chain(*((self.wrapped,)*self.count))
+    @property
+    def coords(self):
+        return list(super().coords)*self.count
 
     def __getattr__(self, name):
         return getattr(self.wrapped, name)
 
 class longitude_iterator(iterator):
-    def translate(self, lon):
-        return SkyCoord(l=lon*u.degree, b=0*u.degree, frame='galactic')
+    @property
+    def coords(self):
+        return SkyCoord(l=self.iter_source*u.degree, b=0*u.degree, frame='galactic')
 
     def format_filename(self, pos):
         return 'lon_%05.1f' % (pos['longitude'].degree,)
@@ -68,8 +65,9 @@ class longitude_iterator(iterator):
         return 'l=%.1f az=%.1f' % (pos['longitude'].degree, pos['azimuth'].degree)
 
 class azimuth_iterator(iterator):
-    def translate(self, az):
-        return SkyCoord(az=az*u.degree, alt=0*u.degree, frame='altaz')
+    @property
+    def coords(self):
+        return SkyCoord(az=self.iter_source*u.degree, alt=0*u.degree, frame='altaz')
 
     def format_filename(self, pos):
         return 'az_%05.1f' % (pos['azimuth'].degree,)
@@ -92,10 +90,6 @@ class grid_iterator(iterator):
             directional_offset_by(self.center, rotation*u.degree, steps*u.degree),
             (rotation+90)*u.degree, np.expand_dims(steps, 1)*u.degree)
         self.coords = sc.galactic.flatten()
-        self.iter_source = self.coords
-
-    def translate(self, sc):
-        return sc
 
     def format_filename(self, pos):
         return 'latlon_%05.1f_%05.1f' % (pos['latitude'], pos['longitude'])
@@ -173,7 +167,7 @@ class Survey:
         all_data = []
 
         try:
-            for number, pos in enumerate(self.iterator):
+            for number, pos in enumerate(self.iterator.coords):
                 for darksky in (False, True):
                     if darksky and not darksky_offset:
                         continue
