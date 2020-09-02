@@ -15,6 +15,7 @@ class Weather:
         logging.getLogger('aprslib.parsing').setLevel(logging.INFO)
         logging.getLogger('aprslib.inet.IS').setLevel(logging.INFO)
         logging.getLogger('chardet.charsetprober').setLevel(logging.INFO)
+        logging.getLogger('chardet.universaldetector').setLevel(logging.INFO)
 
     def start(self):
         self.ais = aprslib.IS("W1XM-RT", host="cwop.mesowest.org", port=30010)
