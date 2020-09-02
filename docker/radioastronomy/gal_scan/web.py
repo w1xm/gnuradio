@@ -4,7 +4,7 @@ from bokeh.application.application import Application
 from bokeh.application.handlers.handler import Handler
 from bokeh.events import Tap
 from bokeh.layouts import column, row, grid
-from bokeh.models import CustomJS, Button, ColumnDataSource, Spinner, Slider, Select, TextInput, DataTable, TableColumn, Panel, Tabs, Toggle, RadioButtonGroup, DateFormatter, HTMLTemplateFormatter
+from bokeh.models import CustomJS, Button, ColumnDataSource, Spinner, Slider, Select, TextInput, DataTable, TableColumn, Panel, Tabs, Toggle, RadioButtonGroup, DateFormatter, HTMLTemplateFormatter, HoverTool, CrosshairTool
 from bokeh.server.server import Server
 from bokeh.plotting import curdoc
 from bokeh.util import logconfig
@@ -85,6 +85,18 @@ class BokehLogWatcher(logging.handlers.QueueHandler):
                 rollover=LOG_ROLLOVER,
             )
         )
+
+class vec_sink_f(bokehgui.vec_sink_f):
+    def add_custom_tools(self):
+        # N.B. Max hold comes from a different CDS so can't be shown in the same tooltip :(
+        hover = HoverTool(
+            tooltips = [
+                ("freq", "$x{0,0.00} MHz"),
+                ("power", "@y0 zW / Hz"),
+            ],
+            mode = 'vline', renderers = self.lines)
+        crosshair = CrosshairTool()
+        self.plot.add_tools(hover, crosshair)
 
 class SessionHandler(Handler):
     def __init__(self, lw, runs_dir):
@@ -246,7 +258,7 @@ class SessionHandler(Handler):
 
         plot_lst = []
 
-        plot = bokehgui.vec_sink_f(doc, plot_lst, sink, is_message =False)
+        plot = vec_sink_f(doc, plot_lst, sink, is_message =False)
 
         plot.initialize(update_time = 100, legend_list = [''])
         plot.get_figure().aspect_ratio = 2
