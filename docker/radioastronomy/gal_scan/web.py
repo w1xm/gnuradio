@@ -164,25 +164,29 @@ class SessionHandler(Handler):
                 d['active'].insert(0, True)
             return d
 
-    def enqueue_action(self, name, callable, allow_queue=False):
+    def enqueue_action(self, name, callable, allow_queue=False, **kwargs):
         with self.actions_cv:
             if self.actions:
                 if not allow_queue:
                     logging.warning("Busy; ignoring manual command")
                     return
                 logging.info("Busy; enqueueing %s", name)
-            self.actions.append({
+            a = {
                 'time': time.time(),
                 'name': name,
                 'callable': callable,
-            })
+            }
+            a.update(kwargs)
+            self.actions.append(a)
             logging.debug("Notifying of new action")
             self.actions_cv.notify()
 
     def enqueue_run(self, args):
+        survey = run.Survey(args)
         self.enqueue_action(
             name=args.output_dir,
-            callable=functools.partial(run.run, self.tb, args),
+            callable=functools.partial(survey.run, self.tb),
+            survey=survey,
             allow_queue=True,
         )
 

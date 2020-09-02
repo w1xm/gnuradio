@@ -9,6 +9,7 @@ from galcoord import radome_observer
 from galcoord import altaz_frame
 from galcoord import freqs_to_vel
 from galcoord import directional_offset_by
+from enum import Enum
 import numpy as np
 from galcoord import get_time
 import logging
@@ -104,121 +105,158 @@ class grid_iterator(iterator):
 
 POSITION_FIELDS = ('time', 'azimuth', 'elevation', 'longitude', 'latitude', 'ra', 'dec', 'rci_azimuth', 'rci_elevation')
 
-def run_survey(tb, savefolder, iterator, args, int_time=30, darksky_offset=0, ref_frequency=HYDROGEN_FREQ):
+class Mode(Enum):
+    gal = 'gal'
+    az = 'az'
+    grid = 'grid'
+
+    def __str__(self):
+        return self.value
+
+class Survey:
     logger = logging.getLogger("survey")
 
-    tb.set_sdr_gain(args.gain)
-    freq=tb.get_sdr_frequency()*u.Hz
-    gain=tb.get_sdr_gain()*u.dB
-    freq_offset=tb.get_output_vector_bandwidth()*u.Hz/2
-    freq_range=np.linspace(freq-freq_offset, freq+freq_offset, tb.get_num_channels())
+    def __init__(self, args):
+        self.args = args
+        iterator_cls = {
+            Mode.gal: longitude_iterator,
+            Mode.az: azimuth_iterator,
+            Mode.grid: grid_iterator,
+        }[args.mode]
 
-    #########################################
-    # BEGIN COMMANDS #
-    #########################################
+        self.iterator = iterator_cls(**vars(args))
 
-    file=open(os.path.join(savefolder, 'info.txt'), 'w')
-    csvwriter = csv.writer(open(os.path.join(savefolder, 'vectors.csv'), 'w'))
-    file.write('Integration time '+str(int_time)+' seconds. Center frequency '+str(freq)+' MHz. \n \n')
-    file.write('Original arguments:\n' + str(args))
-    file.close()
+        if args.repeat:
+            self.iterator = repeat(self.iterator, args.repeat)
 
-    csvwriter.writerow(['# Integration time: %d seconds Center frequency: %s' % (int_time, freq)])
-    freq_count = 2
-    csvwriter.writerow(list(POSITION_FIELDS) + [str(f) for f in freq_range]*freq_count)
+    def run(self, tb):
+        try:
+            os.mkdir(self.args.output_dir)
+        except OSError:
+            pass
+        band=0
+        tb.client.set_band_rx(band, not self.args.ref)
+        self._run_survey(tb)
+        tb.client.set_band_rx(band, False)
+        tb.park()
 
-    # all_data is a list of dictionaries containg all information about a run;
-    # 'data' contains the raw data, 'freqs' contains the frequency for each sample
-    # 'time' contains the observation time
-    # 'rci_azimuth' and 'rci_elevation' contain the actual azimuth and elevation for the observation
-    # all other fields come from pos
-    all_data = []
+    def _run_survey(self, tb, ref_frequency=HYDROGEN_FREQ):
+        savefolder = self.args.output_dir
+        int_time = self.args.int_time
+        darksky_offset = self.args.darksky_offset
 
-    try:
-        for number, pos in enumerate(iterator):
-            for darksky in (False, True):
-                if darksky and not darksky_offset:
-                    continue
-                apytime=get_time()
-                aaf = altaz_frame(apytime, obswl=freq.to(u.cm, u.spectral()))
-                if pos.frame.name == 'altaz':
-                    # Replace altaz frame with one that has obstime and location
-                    pos = SkyCoord(pos, frame=aaf)
-                    pos_altaz = pos
-                else:
-                    pos_altaz = pos.transform_to(aaf)
-                if darksky:
-                    pos_altaz = directional_offset_by(pos_altaz, 90*u.degree, darksky_offset*u.degree)
-                    pos = pos_altaz
-                if pos_altaz.alt < EL_OFFSET*u.degree:
-                    logger.warning("Can't observe at %s; target alt %s is below the horizon", pos, pos_altaz.alt)
-                    continue
-                tb.point(pos_altaz.az.degree, pos_altaz.alt.degree)
+        tb.set_sdr_gain(self.args.gain)
+        freq=tb.get_sdr_frequency()*u.Hz
+        gain=tb.get_sdr_gain()*u.dB
+        freq_offset=tb.get_output_vector_bandwidth()*u.Hz/2
+        freq_range=np.linspace(freq-freq_offset, freq+freq_offset, tb.get_num_channels())
 
-                if pos.location is None:
-                    pos.location = radome_observer.location
-                if pos.obstime is None:
-                    pos.obstime = apytime
+        #########################################
+        # BEGIN COMMANDS #
+        #########################################
 
-                logger.info("Observing at coordinates %s.", pos)
-                data=tb.observe(int_time)*(u.mW/u.Hz)
+        file=open(os.path.join(savefolder, 'info.txt'), 'w')
+        csvwriter = csv.writer(open(os.path.join(savefolder, 'vectors.csv'), 'w'))
+        file.write('Integration time '+str(int_time)+' seconds. Center frequency '+str(freq)+' MHz. \n \n')
+        file.write('Original arguments:\n' + str(self.args))
+        file.close()
 
-                apytime.format = 'unix'
-                row = {
-                    'mode': str(args.mode),
-                    'gain': gain,
-                    'number': number,
-                    'data': data,
-                    'freqs': freq_range,
-                    'time': apytime.value*u.second,
-                    'temperature': pos_altaz.frame.temperature,
-                    'relative_humidity': pos_altaz.frame.relative_humidity,
-                    'pressure': pos_altaz.frame.pressure,
-                    'azimuth': pos_altaz.az,
-                    'elevation': pos_altaz.alt,
-                    'longitude': pos.galactic.l,
-                    'latitude': pos.galactic.b,
-                    'ra': pos.icrs.ra,
-                    'dec': pos.icrs.dec,
-                    'rci_azimuth': tb.client.azimuth_position*u.degree,
-                    'rci_elevation': tb.client.elevation_position*u.degree,
-                }
-                # TODO: When we move to AstroPy 3+ (with Python 3+) we can
-                # just write time, pos and pos_altaz directly to the table.
-                if darksky_offset:
-                    row['darksky'] = darksky
+        csvwriter.writerow(['# Integration time: %d seconds Center frequency: %s' % (int_time, freq)])
+        freq_count = 2
+        csvwriter.writerow(list(POSITION_FIELDS) + [str(f) for f in freq_range]*freq_count)
 
-                vel_range = None
-                if ref_frequency is not None and pos.frame.name != 'altaz':
-                    vel_range=freqs_to_vel(ref_frequency, freq_range.to(u.MHz), pos)
-                    row['vels'] = vel_range
+        # all_data is a list of dictionaries containg all information about a run;
+        # 'data' contains the raw data, 'freqs' contains the frequency for each sample
+        # 'time' contains the observation time
+        # 'rci_azimuth' and 'rci_elevation' contain the actual azimuth and elevation for the observation
+        # all other fields come from pos
+        all_data = []
 
-                all_data.append(row)
+        try:
+            for number, pos in enumerate(self.iterator):
+                for darksky in (False, True):
+                    if darksky and not darksky_offset:
+                        continue
+                    apytime=get_time()
+                    aaf = altaz_frame(apytime, obswl=freq.to(u.cm, u.spectral()))
+                    if pos.frame.name == 'altaz':
+                        # Replace altaz frame with one that has obstime and location
+                        pos = SkyCoord(pos, frame=aaf)
+                        pos_altaz = pos
+                    else:
+                        pos_altaz = pos.transform_to(aaf)
+                    if darksky:
+                        pos_altaz = directional_offset_by(pos_altaz, 90*u.degree, darksky_offset*u.degree)
+                        pos = pos_altaz
+                    if pos_altaz.alt < EL_OFFSET*u.degree:
+                        self.logger.warning("Can't observe at %s; target alt %s is below the horizon", pos, pos_altaz.alt)
+                        continue
+                    tb.point(pos_altaz.az.degree, pos_altaz.alt.degree)
 
-                if not darksky:
-                    # Only generate legacy data and plots for non-darksky data.
-                    apytime.format = 'fits'
-                    csvrow = [str(row[x]) for x in POSITION_FIELDS]
-                    if vel_range is not None:
-                        csvrow += [str(f) for f in vel_range]
-                    csvrow += [str(f) for f in data]
-                    csvwriter.writerow(csvrow)
+                    if pos.location is None:
+                        pos.location = radome_observer.location
+                    if pos.obstime is None:
+                        pos.obstime = apytime
 
-                    prefix=os.path.join(savefolder, 'observation_%d' % (number))
+                    self.logger.info("Observing at coordinates %s.", pos)
+                    data=tb.observe(int_time)*(u.mW/u.Hz)
 
-                    plot.plot_freq(freq, freq_range, data, iterator.format_title(row) + ' ' + str(apytime), prefix+'_freq.pdf')
+                    apytime.format = 'unix'
+                    row = {
+                        'mode': str(self.args.mode),
+                        'gain': gain,
+                        'number': number,
+                        'data': data,
+                        'freqs': freq_range,
+                        'time': apytime.value*u.second,
+                        'temperature': pos_altaz.frame.temperature,
+                        'relative_humidity': pos_altaz.frame.relative_humidity,
+                        'pressure': pos_altaz.frame.pressure,
+                        'azimuth': pos_altaz.az,
+                        'elevation': pos_altaz.alt,
+                        'longitude': pos.galactic.l,
+                        'latitude': pos.galactic.b,
+                        'ra': pos.icrs.ra,
+                        'dec': pos.icrs.dec,
+                        'rci_azimuth': tb.client.azimuth_position*u.degree,
+                        'rci_elevation': tb.client.elevation_position*u.degree,
+                    }
+                    # TODO: When we move to AstroPy 3+ (with Python 3+) we can
+                    # just write time, pos and pos_altaz directly to the table.
+                    if darksky_offset:
+                        row['darksky'] = darksky
 
-                    if 'vels' in row:
-                        plot.plot_velocity(vel_range, data, iterator.format_title(row) + ' '+ str(apytime), prefix+'_vel.pdf')
+                    vel_range = None
+                    if ref_frequency is not None and pos.frame.name != 'altaz':
+                        vel_range=freqs_to_vel(ref_frequency, freq_range.to(u.MHz), pos)
+                        row['vels'] = vel_range
 
-                logger.info('Data logged.')
+                    all_data.append(row)
 
-    finally:
-        if not all_data:
-            logger.warning('No observations found! Not saving data.')
-        else:
-            all_data = QTable(all_data)
+                    if not darksky:
+                        # Only generate legacy data and plots for non-darksky data.
+                        apytime.format = 'fits'
+                        csvrow = [str(row[x]) for x in POSITION_FIELDS]
+                        if vel_range is not None:
+                            csvrow += [str(f) for f in vel_range]
+                        csvrow += [str(f) for f in data]
+                        csvwriter.writerow(csvrow)
 
-            plot.save_data(all_data, savefolder)
+                        prefix=os.path.join(savefolder, 'observation_%d' % (number))
 
-            plot.plot(all_data, savefolder=savefolder)
+                        plot.plot_freq(freq, freq_range, data, self.iterator.format_title(row) + ' ' + str(apytime), prefix+'_freq.pdf')
+
+                        if 'vels' in row:
+                            plot.plot_velocity(vel_range, data, self.iterator.format_title(row) + ' '+ str(apytime), prefix+'_vel.pdf')
+
+                    self.logger.info('Data logged.')
+
+        finally:
+            if not all_data:
+                self.logger.warning('No observations found! Not saving data.')
+            else:
+                all_data = QTable(all_data)
+
+                plot.save_data(all_data, savefolder)
+
+                plot.plot(all_data, savefolder=savefolder)

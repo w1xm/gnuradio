@@ -10,9 +10,8 @@ import argparse
 import os
 import sys
 import time
-from enum import Enum
 import survey_autoranging
-from survey_autoranging import AZ_OFFSET, EL_OFFSET
+from survey_autoranging import Survey, Mode, AZ_OFFSET, EL_OFFSET
 
 ##################################################
 ##################################################
@@ -69,13 +68,6 @@ class radiotelescope(flowgraph):
         self.point(250,50)
 
 
-class Mode(Enum):
-    gal = 'gal'
-    az = 'az'
-    grid = 'grid'
-
-    def __str__(self):
-        return self.value
 
 arg_groups = {
     'General': {
@@ -128,29 +120,6 @@ def parse_args(args, defaults={}):
     parser.set_defaults(**defaults)
     return parser.parse_args(args)
 
-def run(tb, args):
-    try:
-        os.mkdir(args.output_dir)
-    except OSError:
-        pass
-
-    iterator_cls = {
-        Mode.gal: survey_autoranging.longitude_iterator,
-        Mode.az: survey_autoranging.azimuth_iterator,
-        Mode.grid: survey_autoranging.grid_iterator,
-        }[args.mode]
-
-    iterator = iterator_cls(**vars(args))
-
-    if args.repeat:
-        iterator = survey_autoranging.repeat(iterator, args.repeat)
-
-    band=0
-    tb.client.set_band_rx(band, not args.ref)
-    survey_autoranging.run_survey(tb, savefolder=args.output_dir, int_time=args.int_time, darksky_offset=args.darksky_offset, iterator=iterator, args=args)
-    tb.client.set_band_rx(band, False)
-    tb.park()
-
 def main(top_block_cls=radiotelescope, options=None):
     logging.basicConfig(
         format="%(asctime)-15s %(levelname)-8s [%(name)s] [%(module)s:%(funcName)s] %(message)s",
@@ -179,7 +148,8 @@ def main(top_block_cls=radiotelescope, options=None):
     logging.info('Receiving ...')
 
     try:
-        run(tb, args)
+        s = Survey(args)
+        s.run(tb)
     finally:
         tb.stop()
         tb.wait()
