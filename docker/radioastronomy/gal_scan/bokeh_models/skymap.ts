@@ -123,15 +123,12 @@ export class SkymapView extends LayoutDOMView {
       colour: 'red',
     })-1;
 
-    const pointerStatus = this._pointerStatus
-    const pointerTarget = this._pointerTarget
-
     const oldHighlight = this._planetarium.highlight;
     this._planetarium.highlight = function(i) {
       const p = this.pointers[i];
       if (p.ra && p.dec) {
 	const pos = this.radec2xy(p.ra*this.d2r, p.dec*this.d2r);
-	if (i == pointerTarget) {
+	if (p.label == 'target') {
 	  // Draw a crosshair
 	  const c = this.ctx;
 	  c.beginPath();
@@ -148,7 +145,7 @@ export class SkymapView extends LayoutDOMView {
 	  c.moveTo(pos.x, pos.y+1);
 	  c.lineTo(pos.x, pos.y+d);
 	  c.stroke();
-	} else if (i == pointerStatus) {
+	} else if (p.label == 'status') {
 	  // Draw a circle
 	  // TODO: let radius = Math.abs(pos.x-this.radec2xy((p.ra-(p.d/2))*this.d2r, p.dec*this.d2r).x);
 	  let radius = 5
