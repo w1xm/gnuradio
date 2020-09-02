@@ -155,9 +155,9 @@ def run_survey(tb, savefolder, iterator, args, int_time=30, darksky_offset=0, re
                     continue
                 tb.point(pos_altaz.az.degree, pos_altaz.alt.degree)
 
-                if not pos.location:
+                if pos.location is None:
                     pos.location = radome_observer.location
-                if not pos.obstime:
+                if pos.obstime is None:
                     pos.obstime = apytime
 
                 logger.info("Observing at coordinates %s.", pos)
@@ -189,7 +189,7 @@ def run_survey(tb, savefolder, iterator, args, int_time=30, darksky_offset=0, re
                     row['darksky'] = darksky
 
                 vel_range = None
-                if ref_frequency is not None:
+                if ref_frequency is not None and pos.frame.name != 'altaz':
                     vel_range=freqs_to_vel(ref_frequency, freq_range.to(u.MHz), pos)
                     row['vels'] = vel_range
 
@@ -208,7 +208,7 @@ def run_survey(tb, savefolder, iterator, args, int_time=30, darksky_offset=0, re
 
                     plot.plot_freq(freq, freq_range, data, iterator.format_title(row) + ' ' + str(apytime), prefix+'_freq.pdf')
 
-                    if 'longitude' in row:
+                    if 'vels' in row:
                         plot.plot_velocity(vel_range, data, iterator.format_title(row) + ' '+ str(apytime), prefix+'_vel.pdf')
 
                 logger.info('Data logged.')

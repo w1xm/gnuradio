@@ -322,7 +322,7 @@ def average_data(all_data, keys, velocity_correction=True):
             new_col = col[i0s]
         elif col.info.name == 'data':
             # Data gets averaged (with optional velocity correction)
-            if velocity_correction:
+            if velocity_correction and 'vels' in all_data.columns:
                 data = np.vstack(tuple(
                     average_point(group['data'], group['vels'])
                     for group in groups
@@ -331,10 +331,10 @@ def average_data(all_data, keys, velocity_correction=True):
             else:
                 new_col = Column(
                     name='data',
-                    data=np.add.reduceat(
+                    data=(np.add.reduceat(
                         all_data['data'],
-                        i0s
-                    )/np.diff(groups.indices)
+                        i0s,
+                    ).T/np.diff(groups.indices)).T
                 )
         else:
             minmax = np.stack(
@@ -667,10 +667,18 @@ def plot(all_data, xaxes=None, yaxis=None, skip_1d=False, outlier_percentile=Non
     def plot_averaged(data, suffix=''):
         if not skip_1d:
             for row in data:
-                plot_velocity(row['vels'],
+                if yaxis == 'vels':
+                    plot_velocity(row['vels'],
+                                  row['data'],
+                                  '%s=%s (n=%s)' % (xaxis, row[xaxis], row['count']),
+                                  path('%s_%s_averaged%s.pdf' % (xaxis, row[xaxis], suffix)))
+                else:
+                    plot_freq(None,
+                              row['freqs'],
                               row['data'],
                               '%s=%s (n=%s)' % (xaxis, row[xaxis], row['count']),
                               path('%s_%s_averaged%s.pdf' % (xaxis, row[xaxis], suffix)))
+
 
     for xaxis in xaxes:
         averaged_data = average_data(find_shift(raw_data, xaxis), [xaxis])
