@@ -26,6 +26,7 @@ import time
 import tornado.web
 from tornado.web import HTTPError
 from tornado.escape import xhtml_escape
+from zipstream import AioZipStream
 import rci.client
 from galcoord import radome_observer
 import run
@@ -478,6 +479,10 @@ class SessionHandler(Handler):
 
         doc.add_periodic_callback(update_status, 200)
 
+async def empty():
+    if False:
+        yield
+
 class DirectoryHandler(tornado.web.RequestHandler):
     def initialize(self, path):
         self.root = path
@@ -489,7 +494,27 @@ class DirectoryHandler(tornado.web.RequestHandler):
             raise HTTPError(403, "%s is not in root static directory", relative_path)
 
         if os.path.isdir(abspath):
-            html = '<html><title>Directory listing for %s</title><body><h2>Directory listing for %s</h2><hr><ul>' % (relative_path, relative_path)
+            if self.get_argument('zip', False) != False:
+                files = [{'name': os.path.basename(abspath) + '/', 'stream': empty()}] + [
+                    {
+                        'file': os.path.join(abspath, name),
+                        'name': os.path.join(os.path.basename(abspath), name),
+                    }
+                    for name in sorted(os.listdir(abspath))
+                ]
+                self.set_header('Content-Type', 'application/zip')
+                self.set_header('Content-Disposition', 'attachment; filename="%s.zip"' % os.path.basename(abspath).replace('\\', '\\\\').replace('"', '\\"'))
+                async for chunk in AioZipStream(files, chunksize=1024*1024).stream():
+                    self.write(chunk)
+                    await self.flush()
+                return self.finish()
+            html = """
+<html>
+<title>Directory listing for %(relative_path)s</title>
+<body>
+<h2>Directory listing for %(relative_path)s</h2>
+<a href="?zip">Download all</a>
+<hr><ul>""" % {'relative_path': relative_path}
             for filename in sorted(os.listdir(abspath)):
                 force_slash = ''
                 full_path = filename

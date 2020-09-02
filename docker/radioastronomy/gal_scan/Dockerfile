@@ -7,12 +7,13 @@ ARG makewidth=2
 
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y \
     python3-matplotlib \
+    python3-aiofiles \
     python3-astropy \
     python3-astroplan \
     python-is-python3 \
     npm
 
-RUN pip3 install py-spy aprslib
+RUN pip3 install py-spy aprslib aiozipstream
 
 COPY flowgraph.grc /src/
 WORKDIR /flowgraph/
