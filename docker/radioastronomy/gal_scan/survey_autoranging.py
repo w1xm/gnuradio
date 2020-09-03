@@ -41,18 +41,6 @@ class iterator(object):
     def coords(self):
         raise NotImplementedError('coords was not overridden')
 
-class repeat(object):
-    def __init__(self, wrapped, count):
-        self.wrapped = wrapped
-        self.count = count
-
-    @property
-    def coords(self):
-        return list(super().coords)*self.count
-
-    def __getattr__(self, name):
-        return getattr(self.wrapped, name)
-
 class longitude_iterator(iterator):
     @property
     def coords(self):
@@ -123,9 +111,7 @@ class Survey:
         }[args.mode]
 
         self.iterator = iterator_cls(**vars(args))
-
-        if args.repeat:
-            self.iterator = repeat(self.iterator, args.repeat)
+        self.repeat = args.repeat or 1
 
     def run(self, tb):
         try:
@@ -171,7 +157,7 @@ class Survey:
         all_data = []
 
         try:
-            for number, pos in enumerate(self.iterator.coords):
+            for number, pos in enumerate(itertools.chain(*((self.iterator.coords,)*self.repeat))):
                 for darksky in (False, True):
                     if darksky and not darksky_offset:
                         continue

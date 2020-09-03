@@ -465,9 +465,8 @@ class SessionHandler(Handler):
                 try:
                     survey = run.Survey(get_args('bogus'))
                     # TODO: Use the underlying numpy arrays
-                    # TODO: Call .icrs once and then raise the limit on # of points
-                    for i, sc in enumerate(survey.iterator.coords[:200]):
-                        sc = sc.icrs
+                    sc = survey.iterator.coords.icrs
+                    for i, sc in enumerate(sc[:1000]):
                         pointers['ra'].append(sc.ra.to(u.degree).value)
                         pointers['dec'].append(sc.dec.to(u.degree).value)
                         pointers['label'].append(str(i+1))
