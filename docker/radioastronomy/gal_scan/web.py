@@ -4,7 +4,7 @@ from bokeh.application.application import Application
 from bokeh.application.handlers.handler import Handler
 from bokeh.events import Tap
 from bokeh.layouts import column, row, grid
-from bokeh.models import CustomJS, Button, ColumnDataSource, Spinner, Slider, Select, TextInput, DataTable, TableColumn, Panel, Tabs, Toggle, RadioButtonGroup, DateFormatter, HTMLTemplateFormatter, HoverTool, CrosshairTool
+from bokeh.models import CustomJS, Button, ColumnDataSource, Spinner, Slider, Select, TextInput, DataTable, TableColumn, Panel, Tabs, Toggle, RadioButtonGroup, DateFormatter, HTMLTemplateFormatter, HoverTool, CrosshairTool, Paragraph
 from bokeh.server.server import Server
 from bokeh.plotting import curdoc
 from bokeh.util import logconfig
@@ -40,6 +40,7 @@ LOG_ROLLOVER = 100
 LOG_EXCLUDE = (
     'bokeh.server.views.ws',
     'tornado.access',
+    'stderr',
 )
 
 class LogWatcher(logging.handlers.QueueHandler):
@@ -359,6 +360,11 @@ class SessionHandler(Handler):
                         code="""panel.select(Bokeh.require("models/widgets/control").Control).forEach(c => c.disabled = (this.value != mode))""",
                     )
                 )
+
+        plan_p = Paragraph(
+            sizing_mode="stretch_width",
+        )
+
         load = UploadButton(name="load-settings", accept=".json,application/json", label="Load settings")
         def on_load(attr, old, new):
             data = json.loads(base64.b64decode(new))
@@ -400,7 +406,7 @@ class SessionHandler(Handler):
             except SystemExit:
                 pass
         start.on_click(on_start)
-        automated = Panel(title="Plan", child=column(Tabs(tabs=automated_panels), row(load, save, start)))
+        automated = Panel(title="Plan", child=column(Tabs(tabs=automated_panels), plan_p, row(load, save, start)))
 
         # TODO: Show cancel buttons for active or queued actions
         queue_cds = ColumnDataSource(data=self.get_queue_data())
@@ -449,7 +455,7 @@ class SessionHandler(Handler):
             tabs,
             log_table)
 
-        def get_pointer_data():
+        def get_survey_data():
             pointers = {
                 'ra': [],
                 'dec': [],
@@ -461,24 +467,31 @@ class SessionHandler(Handler):
                 pointers['dec'].append(o['dec'])
                 pointers['label'].append(o['label'])
                 pointers['colour'].append('')
-            if tabs.tabs[tabs.active] == automated:
-                try:
-                    survey = run.Survey(get_args('bogus'))
-                    # TODO: Use the underlying numpy arrays
-                    sc = survey.iterator.coords.icrs
-                    for i, sc in enumerate(sc[:1000]):
-                        pointers['ra'].append(sc.ra.to(u.degree).value)
-                        pointers['dec'].append(sc.dec.to(u.degree).value)
-                        pointers['label'].append(str(i+1))
-                        pointers['colour'].append('rgb(148,0,211)')
-                except:
-                    # TODO: Surface error to the user in a better way
-                    logging.exception("Invalid parameters")
-            return pointers
-        pointers_cds = ColumnDataSource(data=get_pointer_data())
+            out = {'pointers': pointers, 'message': 'Invalid parameters'}
+            survey = None
+            try:
+                survey = run.Survey(get_args('bogus'))
+                out['message'] = 'Estimated runtime: %s' % (survey.time_remaining.to_datetime())
+            except:
+                logging.getLogger('stderr').exception('Invalid parameters')
+            if survey and tabs.tabs[tabs.active] == automated:
+                # TODO: Use the underlying numpy arrays
+                sc = survey.iterator.coords.icrs
+                for i, sc in enumerate(sc[:1000]):
+                    pointers['ra'].append(sc.ra.to(u.degree).value)
+                    pointers['dec'].append(sc.dec.to(u.degree).value)
+                    pointers['label'].append(str(i+1))
+                    pointers['colour'].append('rgb(148,0,211)')
+            return out
+        sd = get_survey_data()
+        pointers_cds = ColumnDataSource(data=sd['pointers'])
+        plan_p.text = sd['message']
         def update_pointers(attr, old, new):
             logging.debug('Updating pointers')
-            pointers_cds.data = get_pointer_data()
+            sd = get_survey_data()
+            pointers_cds.data = sd['pointers']
+            plan_p.text = sd['message']
+
         tabs.on_change('active', update_pointers)
         for m in run_models.values():
             m.on_change('value', update_pointers)

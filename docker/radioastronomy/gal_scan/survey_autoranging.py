@@ -22,6 +22,7 @@ import plot
 from astropy.coordinates import SkyCoord
 from astropy import units as u
 from astropy.table import QTable, Column
+from astropy.time import TimeDelta
 
 AZ_OFFSET=5.5
 EL_OFFSET=-5.5
@@ -124,6 +125,19 @@ class Survey:
         tb.client.set_band_rx(band, False)
         tb.park()
 
+    @property
+    def time_remaining(self):
+        # TODO: Track how many points have already been done
+        pos = self.iterator.coords
+        aaf = altaz_frame(get_time())
+        if pos.frame.name == 'altaz':
+            # Replace altaz frame with one that has obstime and location
+            pos_altaz = SkyCoord(pos, frame=aaf)
+        else:
+            pos_altaz = pos.transform_to(aaf)
+        above_horizon = len(pos_altaz[pos_altaz.alt >= EL_OFFSET*u.degree])
+        return TimeDelta((above_horizon * (self.args.int_time + 5)) * (self.args.repeat or 1) * u.second)
+
     def _run_survey(self, tb, ref_frequency=HYDROGEN_FREQ):
         savefolder = self.args.output_dir
         int_time = self.args.int_time
@@ -157,7 +171,7 @@ class Survey:
         all_data = []
 
         try:
-            for number, pos in enumerate(itertools.chain(*((self.iterator.coords,)*self.repeat))):
+            for number, pos in enumerate(self.iterator.coords._apply(np.tile, self.repeat)):
                 for darksky in (False, True):
                     if darksky and not darksky_offset:
                         continue
