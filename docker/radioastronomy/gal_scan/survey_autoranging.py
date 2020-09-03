@@ -89,7 +89,11 @@ class grid_iterator(iterator):
         sc = directional_offset_by(
             directional_offset_by(self.center, rotation*u.degree, steps*u.degree),
             (rotation+90)*u.degree, np.expand_dims(steps, 1)*u.degree)
-        self.coords = sc.galactic.flatten()
+        self._coords = sc.galactic.flatten()
+
+    @property
+    def coords(self):
+        return self._coords
 
     def format_filename(self, pos):
         return 'latlon_%05.1f_%05.1f' % (pos['latitude'], pos['longitude'])

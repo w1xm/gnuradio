@@ -1,7 +1,7 @@
 from bokeh.core.properties import Angle, Tuple, Bool, Int, Float, String, Instance, Override
 from bokeh.io import show
 from bokeh.model import Model
-from bokeh.models import CustomJS, DataTable, LayoutDOM, HTMLBox, Button, FileInput, ButtonLike
+from bokeh.models import CustomJS, DataTable, LayoutDOM, HTMLBox, Button, FileInput, ButtonLike, ColumnDataSource
 import bokeh.util.compiler
 from bokeh.util.compiler import TypeScript
 
@@ -32,6 +32,8 @@ class Skymap(LayoutDOM):
 
     azel = Tuple(Angle, Angle, default=(0, 0))
     targetAzel = Tuple(Angle, Angle)
+
+    pointer_data_source = Instance(ColumnDataSource)
 
 class Knob(HTMLBox):
     title = String(default="")

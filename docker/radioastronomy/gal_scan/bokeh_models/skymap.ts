@@ -2,6 +2,7 @@
 import {LayoutDOM, LayoutDOMView} from "@bokehjs/models/layouts/layout_dom"
 import {LayoutItem} from "@bokehjs/core/layout"
 import {Tap} from "@bokehjs/core/bokeh_events"
+import {ColumnDataSource} from "@bokehjs/models/sources/column_data_source"
 import * as p from "@bokehjs/core/properties"
 
 declare namespace S {
@@ -94,7 +95,6 @@ export class SkymapView extends LayoutDOMView {
       'gridlines_gal': true,
       'showgalaxy': true,
       'mouse': false,
-      'objects': 'https://slowe.github.io/VirtualSky/messier.json',
       'callback': {
 	'click': function(this: S.VirtualSky, e: S.event) {
 	  const azel = this.projection.xy2azel(e.x, e.y, this.wide, this.tall)
@@ -175,8 +175,36 @@ export class SkymapView extends LayoutDOMView {
     this._planetarium.pointers[pointer].dec = radec.dec;
   }
 
+  private get_pointers(): Array<S.pointer> {
+    // TODO: Get these pointers from the CDS as well
+    const pointers = [
+      this._planetarium.pointers[this._pointerStatus],
+      this._planetarium.pointers[this._pointerTarget],
+    ]
+    const source = this.model.pointer_data_source
+    if (!source) {
+      return pointers
+    }
+    for (let i = 0; i < source.get_length()!; i++) {
+      pointers.push({
+	'ra': source.data['ra'][i],
+	'dec': source.data['dec'][i],
+	'd': 5,
+	'label': source.data['label'][i],
+	'colour': source.data['colour'][i] || this._planetarium.col.pointers,
+      })
+    }
+    return pointers
+  }
+
+  private _update_pointers(): void {
+    this._planetarium.pointers = this.get_pointers()
+    this._planetarium.draw()
+  }
+
   connect_signals(): void {
     super.connect_signals()
+    this.connect(this.model.pointer_data_source.change, this._update_pointers)
     // this.connect(this.model.properties.latlon.change, () => {
     //   const latlon = this.model.latlon
     //   this._planetarium.setLatitude(latlon[0])
@@ -230,6 +258,7 @@ export namespace Skymap {
     latlon: p.Any
     azel: p.Any
     targetAzel: p.Any
+    pointer_data_source: p.Property<ColumnDataSource>
   }
 }
 
@@ -257,6 +286,7 @@ export class Skymap extends LayoutDOM {
       latlon: [p.Any],
       azel: [p.Any],
       targetAzel: [p.Any],
+      pointer_data_source: [p.Instance],
     })
   }
 }

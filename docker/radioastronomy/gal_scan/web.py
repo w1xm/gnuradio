@@ -9,6 +9,7 @@ from bokeh.server.server import Server
 from bokeh.plotting import curdoc
 from bokeh.util import logconfig
 from gnuradio import gr, blocks
+from astropy import units as u
 import bokehgui
 import base64
 import collections
@@ -104,7 +105,13 @@ class SessionHandler(Handler):
         super().__init__()
         self.lw = lw
         self.runs_dir = runs_dir
-
+        with open('messier.json') as f:
+            objects = json.load(f)
+            self.messier = [{
+                'ra': o['ra']['decimal'],
+                'dec': o['dec']['decimal'],
+                'label': o['target']['name'],
+            } for o in objects]
     def on_server_loaded(self, server_context):
         self.server_context = server_context
         self.client = rci.client.Client(client_name='gal_scan')
@@ -380,13 +387,15 @@ class SessionHandler(Handler):
                 return JSON.stringify(out, null, 2);
                 """))
         start = Button(label="Start scan")
+        def get_args(output_dir):
+            return run.parse_args(
+                [output_dir],
+                {k: int(v.value) if "boolean" in v.tags else v.value for k, v in run_models.items() if not v.disabled},
+            )
         def on_start():
             try:
                 output_dir = os.path.join(self.runs_dir, "run_"+datetime.datetime.now().replace(microsecond=0).isoformat())
-                args = run.parse_args(
-                    [output_dir],
-                    {k: int(v.value) if "boolean" in v.tags else v.value for k, v in run_models.items() if not v.disabled},
-                )
+                args = get_args(output_dir)
                 self.enqueue_run(args)
             except SystemExit:
                 pass
@@ -433,12 +442,52 @@ class SessionHandler(Handler):
         )
         results = Panel(title="Results", child=results_table)
 
+        tabs = Tabs(tabs=[manual, automated, queue, results])
+
         controls = column(
             row(azimuth, elevation),
-            Tabs(tabs=[manual, automated, queue, results]),
+            tabs,
             log_table)
 
-        skymap = Skymap(height=600, sizing_mode="stretch_height")
+        def get_pointer_data():
+            pointers = {
+                'ra': [],
+                'dec': [],
+                'label': [],
+                'colour': [],
+            }
+            for o in self.messier:
+                pointers['ra'].append(o['ra'])
+                pointers['dec'].append(o['dec'])
+                pointers['label'].append(o['label'])
+                pointers['colour'].append('')
+            if tabs.tabs[tabs.active] == automated:
+                try:
+                    survey = run.Survey(get_args('bogus'))
+                    # TODO: Use the underlying numpy arrays
+                    # TODO: Call .icrs once and then raise the limit on # of points
+                    for i, sc in enumerate(survey.iterator.coords[:200]):
+                        sc = sc.icrs
+                        pointers['ra'].append(sc.ra.to(u.degree).value)
+                        pointers['dec'].append(sc.dec.to(u.degree).value)
+                        pointers['label'].append(str(i+1))
+                        pointers['colour'].append('rgb(148,0,211)')
+                except:
+                    # TODO: Surface error to the user in a better way
+                    logging.exception("Invalid parameters")
+            return pointers
+        pointers_cds = ColumnDataSource(data=get_pointer_data())
+        def update_pointers(attr, old, new):
+            logging.debug('Updating pointers')
+            pointers_cds.data = get_pointer_data()
+        tabs.on_change('active', update_pointers)
+        for m in run_models.values():
+            m.on_change('value', update_pointers)
+
+        skymap = Skymap(
+            height=600, sizing_mode="stretch_height",
+            pointer_data_source=pointers_cds,
+        )
         skymap.on_event(Tap, lambda event: self.point(event.x, event.y))
 
         doc.add_root(
