@@ -315,7 +315,7 @@ def average_data(all_data, keys, velocity_correction=True):
     groups = all_data.groups
     i0s, i1s = groups.indices[:-1], groups.indices[1:]
     out_cols = []
-    keep = set(groups.key_colnames) | {'mode', 'freqs', 'vels'}
+    keep = set(groups.key_colnames) | {'mode', 'freqs', 'vels', 'body_name'}
     for col in all_data.columns.values():
         if col.info.name in keep:
             # Keep columns get passed through
