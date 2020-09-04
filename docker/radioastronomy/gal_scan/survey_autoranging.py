@@ -148,6 +148,7 @@ class Survey:
 
         self.iterator = iterator_cls(**vars(args))
         self.repeat = args.repeat or 1
+        self.last_row = {}
 
     def run(self, tb):
         try:
@@ -161,9 +162,16 @@ class Survey:
         tb.park()
 
     @property
-    def time_remaining(self):
-        # TODO: Track how many points have already been done
+    def coord_groups(self):
         pos = self.iterator.coords._apply(np.tile, self.repeat)
+        number = self.last_row.get('number', 0)
+        done_pos = pos[:number]
+        remaining_pos = pos[number:]
+        return remaining_pos, done_pos
+
+    @property
+    def time_remaining(self):
+        pos = self.coord_groups[0]
         aaf = altaz_frame(get_time())
         if pos.frame.name == 'altaz':
             # Replace altaz frame with one that has obstime and location
@@ -280,6 +288,7 @@ class Survey:
                         vel_range=freqs_to_vel(ref_frequency, freq_range.to(u.MHz), pos)
                         row['vels'] = vel_range
 
+                    self.last_row = row
                     all_data.append(row)
 
                     if not darksky:

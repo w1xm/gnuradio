@@ -128,7 +128,7 @@ class SessionHandler(Handler):
         self.actions = collections.deque()
         self.actions_cv = threading.Condition()
         self.actions_exit = False
-        self.active_action = None
+        self.active_action = {}
         self.actions_thread = threading.Thread(target=self.action_thread, name="radiotelescope")
         self.actions_thread.start()
 
@@ -149,7 +149,7 @@ class SessionHandler(Handler):
                         logging.exception("Exception while running %s", action["name"])
                     finally:
                         self.actions_cv.acquire()
-                        self.active_action = None
+                        self.active_action = {}
                 if self.actions_exit:
                     return
                 self.maybe_stop_tb()
@@ -468,6 +468,19 @@ class SessionHandler(Handler):
                 pointers['dec'].append(o['dec'])
                 pointers['label'].append(o['label'])
                 pointers['colour'].append('')
+            survey = self.active_action.get('survey')
+            if survey:
+                groups = survey.coord_groups
+                i = 0
+                for sc, colour in zip(groups, ('rgb(192, 0, 0)', 'rgb(0, 192, 0)')):
+                    sc = sc.icrs
+                    for sc in sc:
+                        pointers['ra'].append(sc.ra.to(u.degree).value)
+                        pointers['dec'].append(sc.dec.to(u.degree).value)
+                        pointers['label'].append(str(i+1))
+                        pointers['colour'].append(colour)
+                        i += 1
+                # TODO: Show survey.time_remaining somewhere
             out = {'pointers': pointers, 'message': 'Invalid parameters'}
             survey = None
             try:
