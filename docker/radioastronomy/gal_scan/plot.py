@@ -25,7 +25,7 @@ try:
 except ImportError:
     from numpy.lib.recfunctions import _izip_records as izip_records
 from astropy import units as u
-from astropy.coordinates import Angle, Longitude, SkyCoord
+from astropy.coordinates import Angle, Latitude, Longitude, SkyCoord
 from astropy.table import QTable, Column, ColumnGroups
 from astropy.time import Time
 from astropy.io import fits
@@ -89,7 +89,7 @@ def find_shift(all_data, axis):
     all_data = all_data.copy()
     all_data.sort(axis)
     axis_data = all_data[axis]
-    if not axis_data.unit or not axis_data.unit.is_equivalent(u.degree):
+    if not axis_data.unit or not axis_data.unit.is_equivalent(u.degree) or isinstance(axis_data, Latitude):
         return all_data
     diffs = np.diff(axis_data)
     adiffs = np.abs(diffs)
