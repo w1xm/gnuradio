@@ -472,7 +472,7 @@ class SessionHandler(Handler):
             if survey:
                 groups = survey.coord_groups
                 i = 0
-                for sc, colour in zip(groups, ('rgb(192, 0, 0)', 'rgb(0, 192, 0)')):
+                for sc, colour in zip(reversed(groups), ('rgb(0, 192, 0)', 'rgb(192, 0, 0)')):
                     sc = sc.icrs
                     for sc in sc:
                         pointers['ra'].append(sc.ra.to(u.degree).value)
@@ -506,6 +506,7 @@ class SessionHandler(Handler):
             pointers_cds.data = sd['pointers']
             plan_p.text = sd['message']
 
+        log_cds.on_change('data', update_pointers)
         tabs.on_change('active', update_pointers)
         for m in run_models.values():
             m.on_change('value', update_pointers)
