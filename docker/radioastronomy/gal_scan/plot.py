@@ -539,11 +539,11 @@ def remove_pointing_error(all_data, max_pointing_error):
         cmd_pos[cmd_pos[:,1] > 180*u.degree, 1] -= 360*u.degree
         obs_pos = structured_to_unstructured(all_data[['rci_azimuth', 'rci_elevation']])
         obs_pos[obs_pos[:,1] > 180*u.degree, 1] -= 360*u.degree
-        all_data['bad'] = np.linalg.norm(cmd_pos-obs_pos, axis=1) < max_pointing_error
+        all_data['bad'] = np.linalg.norm(cmd_pos-obs_pos, axis=1) > max_pointing_error
 
         # TODO: Just leave the bad rows in all_data and have normalize_data filter them out?
-        bad_data = all_data[~all_data['bad']]
-        all_data = all_data[all_data['bad']]
+        bad_data = all_data[all_data['bad']]
+        all_data = all_data[~all_data['bad']]
         if len(all_data) != count:
             print("Removed %d of %d points with pointing error > %f°" % (count-len(all_data), count, max_pointing_error.to_value(u.degree)))
         return all_data, bad_data
@@ -687,15 +687,15 @@ def plot(all_data, xaxes=None, yaxis=None, skip_1d=False, outlier_percentile=Non
         print("Plotting 1D averaged %s" % (xaxis,))
         plot_averaged(averaged_data)
 
-        plot_2d(raw_data, xaxis, yaxis, savefolder=savefolder)
+        plot_2d(averaged_data, xaxis, yaxis, savefolder=savefolder)
         if has_darksky:
             averaged_data = average_data(calibrated_data, [xaxis])
             plot_averaged(averaged_data, '_calibrated')
-            plot_2d(calibrated_data, xaxis, yaxis, normalized='calibrated', savefolder=savefolder)
+            plot_2d(averaged_data, xaxis, yaxis, normalized='calibrated', savefolder=savefolder)
         else:
             averaged_data = average_data(normalized_data, [xaxis])
             plot_averaged(averaged_data, '_normalized')
-            plot_2d(normalized_data, xaxis, yaxis, normalized='normalized', savefolder=savefolder)
+            plot_2d(averaged_data, xaxis, yaxis, normalized='normalized', savefolder=savefolder)
     plot_observations(all_data, bad_data, savefolder=savefolder)
 
 if __name__ == '__main__':
