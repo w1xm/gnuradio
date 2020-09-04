@@ -286,6 +286,15 @@ class SessionHandler(Handler):
 
         azimuth = Knob(title="Azimuth", max=360, min=0, unit="°")
         elevation = Knob(title="Elevation", max=360, min=0, unit="°")
+        rx_power = Knob(title="RX Power", digits=4, decimals=1, unit="dBm")
+        plot.stream.js_on_change("streaming", CustomJS(
+            args = dict(rx_power=rx_power),
+            code = """
+            const data = cb_obj.data
+            const average = data['y0'].reduce((a,b) => a+b)/data['y0'].length
+            rx_power.value = (10*Math.log10(average))-180
+            """,
+        ))
 
         log_table = SortedDataTable(
             source=log_cds,
@@ -451,8 +460,13 @@ class SessionHandler(Handler):
 
         tabs = Tabs(tabs=[manual, automated, queue, results])
 
+        status_p = Paragraph(
+            sizing_mode="stretch_width",
+        )
+
         controls = column(
-            row(azimuth, elevation),
+            row(azimuth, elevation, rx_power),
+            status_p,
             tabs,
             log_table)
 
@@ -469,6 +483,7 @@ class SessionHandler(Handler):
                 pointers['label'].append(o['label'])
                 pointers['colour'].append('')
             survey = self.active_action.get('survey')
+            out = {'pointers': pointers, 'status_message': 'Idle', 'plan_message': 'Invalid parameters'}
             if survey:
                 groups = survey.coord_groups
                 i = 0
@@ -480,12 +495,11 @@ class SessionHandler(Handler):
                         pointers['label'].append(str(i+1))
                         pointers['colour'].append(colour)
                         i += 1
-                # TODO: Show survey.time_remaining somewhere
-            out = {'pointers': pointers, 'message': 'Invalid parameters'}
+                out['status_message'] = 'Time remaining on current survey: %s' % (survey.time_remaining.to_datetime())
             survey = None
             try:
                 survey = run.Survey(get_args('bogus'))
-                out['message'] = 'Estimated runtime: %s' % (survey.time_remaining.to_datetime())
+                out['plan_message'] = 'Estimated runtime: %s' % (survey.time_remaining.to_datetime())
                 if tabs.tabs[tabs.active] == automated:
                     # TODO: Use the underlying numpy arrays
                     sc = survey.iterator.coords.icrs
@@ -499,12 +513,13 @@ class SessionHandler(Handler):
             return out
         sd = get_survey_data()
         pointers_cds = ColumnDataSource(data=sd['pointers'])
-        plan_p.text = sd['message']
         def update_pointers(attr, old, new):
             logging.debug('Updating pointers')
             sd = get_survey_data()
             pointers_cds.data = sd['pointers']
-            plan_p.text = sd['message']
+            plan_p.text = sd['plan_message']
+            status_p.text = sd['status_message']
+        update_pointers(None, None, None)
 
         log_cds.on_change('data', update_pointers)
         tabs.on_change('active', update_pointers)
