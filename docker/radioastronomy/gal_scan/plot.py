@@ -653,6 +653,8 @@ def plot(all_data, xaxes=None, yaxis=None, skip_1d=False, outlier_percentile=Non
                 xaxes = 'number rci_azimuth longitude'.split()
             elif mode == 'grid':
                 xaxes = 'number rci_azimuth longitude latitude'.split()
+            elif mode == 'solar_grid':
+                xaxes = 'number skyoffset_latitude skyoffset_longitude'.split()
         xaxes = all_axes & set(xaxes)
     print("Plotting axes:", xaxes)
 

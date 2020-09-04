@@ -12,6 +12,7 @@ import sys
 import time
 import survey_autoranging
 from survey_autoranging import Survey, Mode, AZ_OFFSET, EL_OFFSET
+from astropy.coordinates import solar_system_ephemeris
 
 ##################################################
 ##################################################
@@ -95,6 +96,9 @@ arg_groups = {
         'rotation': dict(type=float, help='grid rotation', metavar='°'),
         'rotation-frame': dict(default='icrs', choices=('icrs', 'galactic'), help='grid rotation frame'),
     },
+    'mode=solar_grid': {
+        'body-name': dict(help='solar body', choices=solar_system_ephemeris.bodies, default='sun'),
+    }
 }
 
 class LoggingArgumentParser(argparse.ArgumentParser):

@@ -340,7 +340,8 @@ class SessionHandler(Handler):
                 elif 'choices' in arg:
                     type = Select
                     bokeh_args['options'] = [str(x) for x in arg['choices']]
-                    bokeh_args['value'] = str(bokeh_args['value'])
+                    if 'value' in bokeh_args:
+                        bokeh_args['value'] = str(bokeh_args['value'])
                 elif arg.get('action') in ('store_true', 'store_false'):
                     type = Select
                     bokeh_args['options'] = [('0', 'False'), ('1', 'True')]
@@ -472,16 +473,16 @@ class SessionHandler(Handler):
             try:
                 survey = run.Survey(get_args('bogus'))
                 out['message'] = 'Estimated runtime: %s' % (survey.time_remaining.to_datetime())
+                if tabs.tabs[tabs.active] == automated:
+                    # TODO: Use the underlying numpy arrays
+                    sc = survey.iterator.coords.icrs
+                    for i, sc in enumerate(sc[:1000]):
+                        pointers['ra'].append(sc.ra.to(u.degree).value)
+                        pointers['dec'].append(sc.dec.to(u.degree).value)
+                        pointers['label'].append(str(i+1))
+                        pointers['colour'].append('rgb(148,0,211)')
             except:
                 logging.getLogger('stderr').exception('Invalid parameters')
-            if survey and tabs.tabs[tabs.active] == automated:
-                # TODO: Use the underlying numpy arrays
-                sc = survey.iterator.coords.icrs
-                for i, sc in enumerate(sc[:1000]):
-                    pointers['ra'].append(sc.ra.to(u.degree).value)
-                    pointers['dec'].append(sc.dec.to(u.degree).value)
-                    pointers['label'].append(str(i+1))
-                    pointers['colour'].append('rgb(148,0,211)')
             return out
         sd = get_survey_data()
         pointers_cds = ColumnDataSource(data=sd['pointers'])

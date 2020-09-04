@@ -19,7 +19,7 @@ import time
 import csv
 from collections import namedtuple
 import plot
-from astropy.coordinates import SkyCoord
+from astropy.coordinates import SkyCoord, SkyOffsetFrame, get_body
 from astropy import units as u
 from astropy.table import QTable, Column
 from astropy.time import TimeDelta
@@ -41,6 +41,12 @@ class iterator(object):
     @property
     def coords(self):
         raise NotImplementedError('coords was not overridden')
+
+    def __iter__(self):
+        return self.coords
+
+    def transform(self, value):
+        return value
 
 class longitude_iterator(iterator):
     @property
@@ -90,12 +96,40 @@ class grid_iterator(iterator):
     def format_title(self, pos):
         return 'l=%.1f b=%.1f az=%.1f el=%.1f' % (pos['longitude'].degree, pos['latitude'].degree, pos['azimuth'].degree, pos['elevation'].degree)
 
+class solar_grid_iterator(iterator):
+    def __init__(self, start, stop, step, body_name, **kwargs):
+        super().__init__(start, stop, step)
+        # Check that body_name is valid
+        get_body(body_name, time=get_time())
+        self.body_name = body_name
+
+    @property
+    def coords(self):
+        t = get_time()
+        body = get_body(self.body_name, time=t)
+        grid = np.mgrid[self.start:(self.stop+self.step):self.step, self.start:(self.stop+self.step):self.step]
+        return SkyCoord(grid[0]*u.degree, grid[1]*u.degree, frame=SkyOffsetFrame(origin=body, obstime=t)).flatten()
+
+    def __iter__(self):
+        def correct(point):
+            t = get_time()
+            body = get_body(self.body_name, time=t)
+            return SkyCoord(point.lon, point.lat, frame=SkyOffsetFrame(origin=body, obstime=t))
+        return (correct(point) for point in self.coords)
+
+    def format_filename(self, pos):
+        return 'offset_%05.1f_%05.1f' % (pos['skyoffset_latitude'], pos['skyoffset_longitude'])
+
+    def format_title(self, pos):
+        return '%s offset lon=%.1f lat=%.1f az=%.1f el=%.1f' % (self.body_name, pos['skyoffset_longitude'].degree, pos['latitude'].degree, pos['azimuth'].degree, pos['elevation'].degree)
+
 POSITION_FIELDS = ('time', 'azimuth', 'elevation', 'longitude', 'latitude', 'ra', 'dec', 'rci_azimuth', 'rci_elevation')
 
 class Mode(Enum):
     gal = 'gal'
     az = 'az'
     grid = 'grid'
+    solar_grid = 'solar_grid'
 
     def __str__(self):
         return self.value
@@ -109,6 +143,7 @@ class Survey:
             Mode.gal: longitude_iterator,
             Mode.az: azimuth_iterator,
             Mode.grid: grid_iterator,
+            Mode.solar_grid: solar_grid_iterator,
         }[args.mode]
 
         self.iterator = iterator_cls(**vars(args))
@@ -128,7 +163,7 @@ class Survey:
     @property
     def time_remaining(self):
         # TODO: Track how many points have already been done
-        pos = self.iterator.coords
+        pos = self.iterator.coords._apply(np.tile, self.repeat)
         aaf = altaz_frame(get_time())
         if pos.frame.name == 'altaz':
             # Replace altaz frame with one that has obstime and location
@@ -136,7 +171,13 @@ class Survey:
         else:
             pos_altaz = pos.transform_to(aaf)
         above_horizon = len(pos_altaz[pos_altaz.alt >= EL_OFFSET*u.degree])
-        return TimeDelta((above_horizon * (self.args.int_time + 5)) * (self.args.repeat or 1) * u.second)
+        if self.args.darksky_offset:
+            above_horizon *= 2
+        return TimeDelta((above_horizon * (self.args.int_time + 5)) * u.second)
+
+    @property
+    def coords(self):
+        return itertools.chain(*((self.iterator,)*self.repeat))
 
     def _run_survey(self, tb, ref_frequency=HYDROGEN_FREQ):
         savefolder = self.args.output_dir
@@ -171,7 +212,7 @@ class Survey:
         all_data = []
 
         try:
-            for number, pos in enumerate(self.iterator.coords._apply(np.tile, self.repeat)):
+            for number, pos in enumerate(self.coords):
                 for darksky in (False, True):
                     if darksky and not darksky_offset:
                         continue
@@ -183,6 +224,16 @@ class Survey:
                         pos_altaz = pos
                     else:
                         pos_altaz = pos.transform_to(aaf)
+
+                    row = {}
+
+                    if isinstance(pos.frame, SkyOffsetFrame):
+                        row.update({
+                            'body_name': self.args.body_name,
+                            'skyoffset_latitude': pos.lat,
+                            'skyoffset_longitude': pos.lon,
+                        })
+
                     if darksky:
                         pos_altaz = directional_offset_by(pos_altaz, 90*u.degree, darksky_offset*u.degree)
                         pos = pos_altaz
@@ -200,7 +251,7 @@ class Survey:
                     data=tb.observe(int_time)*(u.mW/u.Hz)
 
                     apytime.format = 'unix'
-                    row = {
+                    row.update({
                         'mode': str(self.args.mode),
                         'gain': gain,
                         'number': number,
@@ -218,7 +269,7 @@ class Survey:
                         'dec': pos.icrs.dec,
                         'rci_azimuth': tb.client.azimuth_position*u.degree,
                         'rci_elevation': tb.client.elevation_position*u.degree,
-                    }
+                    })
                     # TODO: When we move to AstroPy 3+ (with Python 3+) we can
                     # just write time, pos and pos_altaz directly to the table.
                     if darksky_offset:
