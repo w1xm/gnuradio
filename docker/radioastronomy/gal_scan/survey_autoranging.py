@@ -43,7 +43,7 @@ class iterator(object):
         raise NotImplementedError('coords was not overridden')
 
     def __iter__(self):
-        return self.coords
+        return iter(self.coords)
 
     def transform(self, value):
         return value

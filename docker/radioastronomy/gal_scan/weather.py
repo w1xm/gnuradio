@@ -51,6 +51,11 @@ class Weather:
 
     def _fetch_latest(self):
         resp = requests.get("http://www.findu.com/cgi-bin/wxxml.cgi?last=1", {'call': self.station})
+        try:
+            resp.raise_for_status()
+        except:
+            self.logger.exception('fetching latest observations')
+            return
         xml = ElementTree.XML(resp.text)
         report = xml.find("weatherReport")
         self.callback({

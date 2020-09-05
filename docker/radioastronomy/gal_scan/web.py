@@ -286,7 +286,7 @@ class SessionHandler(Handler):
 
         azimuth = Knob(title="Azimuth", max=360, min=0, unit="°")
         elevation = Knob(title="Elevation", max=360, min=0, unit="°")
-        rx_power = Knob(title="RX Power", digits=4, decimals=1, unit="dBm")
+        rx_power = Knob(title="RX Power", digits=4, decimals=1, unit="dBm/Hz")
         plot.stream.js_on_change("streaming", CustomJS(
             args = dict(rx_power=rx_power),
             code = """
@@ -324,7 +324,6 @@ class SessionHandler(Handler):
         for group, args in run.arg_groups.items():
             # TODO: show grouping
             panel_models = []
-            # TODO: hide or disable mode=grid if grid is not selected
             for key, arg in args.items():
                 key = key.replace('-', '_')
                 bokeh_args = arg.get('bokeh', {})
@@ -356,6 +355,9 @@ class SessionHandler(Handler):
                     bokeh_args['options'] = [('0', 'False'), ('1', 'True')]
                     bokeh_args['value'] = str(int(bokeh_args['value']))
                     bokeh_args['tags'] = ['boolean'] + bokeh_args.get('tags', [])
+                if group.startswith("mode="):
+                    # Make this smarter if we ever have a mode=gal tab
+                    bokeh_args['disabled'] = True
                 m = type(**bokeh_args)
                 run_models[key] = m
                 panel_models.append(m)
