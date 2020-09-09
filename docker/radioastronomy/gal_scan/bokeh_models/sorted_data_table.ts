@@ -1,6 +1,11 @@
 import {DataTable, DataTableView} from "@bokehjs/models/widgets/tables/data_table"
+import {TableColumn, ColumnType, Item} from "@bokehjs/models/widgets/tables/table_column"
 import {keys, to_object} from "@bokehjs/core/util/object"
-import {CellCssStylesHash} from "@bokeh/slickgrid"
+import {uniqueId} from "@bokehjs/core/util/string"
+import {CellCssStylesHash, Formatter} from "@bokeh/slickgrid"
+import {CellMenu} from "@bokeh/slickgrid/plugins/slick.cellmenu"
+// @ts-ignore
+import cellmenu_css from "./slick.cellmenu.css"
 import * as p from "@bokehjs/core/properties"
 
 export class SortedDataTableView extends DataTableView {
@@ -20,8 +25,15 @@ export class SortedDataTableView extends DataTableView {
     }
   }
 
+  styles(): string[] {
+    return [...super.styles(), cellmenu_css]
+  }
+
   render(): void {
     super.render()
+    const cellMenuPlugin = new CellMenu({ hideMenuOnScroll: true})
+    this.grid.registerPlugin(cellMenuPlugin);
+    // TODO: cellMenuPlugin.onCommand.subscribe(function (e, args) {})
     const columns = this.grid.getColumns()
     const to_sort = [{
       sortCol: {
@@ -63,5 +75,55 @@ export class SortedDataTable extends DataTable {
     this.override({
       sortable: true,
     })
+  }
+}
+
+export namespace ActionMenuColumn {
+  export type Attrs = p.AttrsOf<Props>
+
+  export type Props = TableColumn.Props & {
+  }
+}
+
+export interface ActionMenuColumn extends ActionMenuColumn.Attrs {}
+
+type CellMenuColumnType = ColumnType & {
+  cellMenu: any,
+}
+
+export class ActionMenuColumn extends TableColumn {
+  properties: ActionMenuColumn.Props
+  static __module__ = "bokeh_models"
+
+  constructor(attrs?: Partial<TableColumn.Attrs>) {
+    super(attrs)
+  }
+
+  static init_ActionMenuColumn(): void {
+    this.define<ActionMenuColumn.Props>({})
+    this.override({
+      width: 50,
+    })
+  }
+
+  toColumn(): ColumnType {
+    const actionFormatter: Formatter<Item> = (_row, _cell, _value, _columnDef, _dataContext) => {
+      return `<div class="bk bk-btn bk-btn-default">Action <i class="fa fa-caret-down"></i></div>`;
+    };
+    const info: CellMenuColumnType = {
+      id: uniqueId(),
+      field: this.field,
+      name: this.title ?? this.field,
+      width: this.width,
+      resizable: false,
+      formatter: actionFormatter,
+      cellMenu: {
+	commandItems: [
+	  { command: "cancel", title: "Cancel" },
+	],
+      },
+      sortable: false,
+    }
+    return info
   }
 }

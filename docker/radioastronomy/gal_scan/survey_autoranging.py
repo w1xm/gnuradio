@@ -164,9 +164,9 @@ class Survey:
     @property
     def coord_groups(self):
         pos = self.iterator.coords._apply(np.tile, self.repeat)
-        number = self.last_row.get('number', 0)
-        done_pos = pos[:number]
-        remaining_pos = pos[number:]
+        number = self.last_row.get('number', -1)
+        done_pos = pos[:number+1]
+        remaining_pos = pos[number+1:]
         return remaining_pos, done_pos
 
     @property

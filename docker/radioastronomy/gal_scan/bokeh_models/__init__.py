@@ -1,7 +1,7 @@
 from bokeh.core.properties import Angle, Tuple, Bool, Int, Float, String, Instance, Override
 from bokeh.io import show
 from bokeh.model import Model
-from bokeh.models import CustomJS, DataTable, LayoutDOM, HTMLBox, Button, FileInput, ButtonLike, ColumnDataSource
+from bokeh.models import CustomJS, DataTable, LayoutDOM, HTMLBox, Button, FileInput, ButtonLike, ColumnDataSource, TableColumn
 import bokeh.util.compiler
 from bokeh.util.compiler import TypeScript
 
@@ -64,3 +64,6 @@ class SortedDataTable(DataTable):
     sortable = Override(default=True)
     highlight_field = String()
     sort_ascending = Bool(False)
+
+class ActionMenuColumn(TableColumn):
+    width = Override(default=50)

@@ -32,7 +32,7 @@ import rci.client
 from galcoord import radome_observer
 import run
 from weather import Weather
-from bokeh_models import Skymap, Knob, DownloadButton, UploadButton, ActiveButton, SortedDataTable
+from bokeh_models import Skymap, Knob, DownloadButton, UploadButton, ActiveButton, SortedDataTable, ActionMenuColumn
 
 RUNS_DIR = "/runs/"
 
@@ -431,6 +431,7 @@ class SessionHandler(Handler):
                 ),
                 TableColumn(field="user", title="User"),
                 TableColumn(field="name", title="Job"),
+                ActionMenuColumn(field="name", title="Action"),
             ],
             highlight_field="active",
             sort_ascending=True,
