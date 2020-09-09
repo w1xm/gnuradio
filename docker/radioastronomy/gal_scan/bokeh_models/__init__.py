@@ -1,7 +1,9 @@
-from bokeh.core.properties import Angle, Tuple, Bool, Int, Float, String, Instance, Override
+from bokeh.core.properties import Angle, Tuple, Bool, Int, Float, String, Instance, Override, List, Either
 from bokeh.io import show
+from bokeh.events import ModelEvent
 from bokeh.model import Model
 from bokeh.models import CustomJS, DataTable, LayoutDOM, HTMLBox, Button, FileInput, ButtonLike, ColumnDataSource, TableColumn
+from bokeh.models.callbacks import Callback
 import bokeh.util.compiler
 from bokeh.util.compiler import TypeScript
 
@@ -65,5 +67,18 @@ class SortedDataTable(DataTable):
     highlight_field = String()
     sort_ascending = Bool(False)
 
+class ActionMenuClick(ModelEvent):
+    event_name = 'action_menu_click'
+
+    def __init__(self, model, item=None, row=None, value=None):
+        self.item = item
+        self.row = row
+        self.value = value
+        super().__init__(model=model)
+
 class ActionMenuColumn(TableColumn):
-    width = Override(default=50)
+    width = Override(default=100)
+    menu = List(Either(String, Tuple(String, Either(String, Instance(Callback)))), help="""
+    Button's dropdown menu consisting of entries containing item's text and
+    value name. Use ``None`` as a menu separator.
+    """)

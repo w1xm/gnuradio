@@ -24,6 +24,7 @@ import os.path
 import socket
 import threading
 import time
+import uuid
 import tornado.web
 from tornado.web import HTTPError
 from tornado.escape import xhtml_escape
@@ -32,7 +33,7 @@ import rci.client
 from galcoord import radome_observer
 import run
 from weather import Weather
-from bokeh_models import Skymap, Knob, DownloadButton, UploadButton, ActiveButton, SortedDataTable, ActionMenuColumn
+from bokeh_models import Skymap, Knob, DownloadButton, UploadButton, ActiveButton, SortedDataTable, ActionMenuColumn, ActionMenuClick
 
 RUNS_DIR = "/runs/"
 
@@ -159,6 +160,7 @@ class SessionHandler(Handler):
     def get_queue_data(self):
         with self.actions_cv:
             d = {
+                'id': [a['id'] for a in self.actions],
                 'time': [int(a['time']*1000) for a in self.actions],
                 'user': ["" for a in self.actions],
                 'name': [a['name'] for a in self.actions],
@@ -166,6 +168,7 @@ class SessionHandler(Handler):
             }
             if self.active_action:
                 # TODO: Render active action differently (bold?)
+                d['id'].insert(0, self.active_action['id'])
                 d['time'].insert(0, int(self.active_action['time']*1000))
                 d['user'].insert(0, "")
                 d['name'].insert(0, self.active_action['name'])
@@ -180,6 +183,7 @@ class SessionHandler(Handler):
                     return
                 logging.info("Busy; enqueueing %s", name)
             a = {
+                'id': str(uuid.uuid4()),
                 'time': time.time(),
                 'name': name,
                 'callable': callable,
@@ -188,6 +192,20 @@ class SessionHandler(Handler):
             self.actions.append(a)
             logging.debug("Notifying of new action")
             self.actions_cv.notify()
+
+    def cancel_action(self, id):
+        with self.actions_cv:
+            for i, a in enumerate(self.actions):
+                if a['id'] == id:
+                    logging.info("Removing queued action")
+                    del self.actions[i]
+                    return
+            if self.active_action and self.active_action['id'] == id:
+                if 'survey' in self.active_action:
+                    logging.info("Aborting running survey")
+                    self.active_action['survey'].abort()
+                    return
+            logging.warning("Couldn't cancel action")
 
     def enqueue_run(self, args):
         survey = run.Survey(args)
@@ -422,6 +440,19 @@ class SessionHandler(Handler):
 
         # TODO: Show cancel buttons for active or queued actions
         queue_cds = ColumnDataSource(data=self.get_queue_data())
+        action_column = ActionMenuColumn(
+            field="id", title="Action",
+            menu=[
+                ("Cancel", "cancel"),
+            ],
+        )
+        def on_action_menu_click(event):
+            if event.item == "cancel":
+                self.cancel_action(event.value)
+            else:
+                logging.warn("Unknown action clicked: %s", event.item)
+
+        action_column.on_event(ActionMenuClick, on_action_menu_click)
         queue_table = SortedDataTable(
             source=queue_cds,
             columns=[
@@ -431,7 +462,7 @@ class SessionHandler(Handler):
                 ),
                 TableColumn(field="user", title="User"),
                 TableColumn(field="name", title="Job"),
-                ActionMenuColumn(field="name", title="Action"),
+                action_column,
             ],
             highlight_field="active",
             sort_ascending=True,

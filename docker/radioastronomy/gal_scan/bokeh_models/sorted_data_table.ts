@@ -1,9 +1,13 @@
 import {DataTable, DataTableView} from "@bokehjs/models/widgets/tables/data_table"
 import {TableColumn, ColumnType, Item} from "@bokehjs/models/widgets/tables/table_column"
+import {CallbackLike1} from "@bokehjs/models/callbacks/callback"
+import {Class} from "@bokehjs/core/class"
 import {keys, to_object} from "@bokehjs/core/util/object"
 import {uniqueId} from "@bokehjs/core/util/string"
+import {isString} from "@bokehjs/core/util/types"
+import {BokehEvent, ModelEvent, JSON} from "@bokehjs/core/bokeh_events"
 import {CellCssStylesHash, Formatter} from "@bokeh/slickgrid"
-import {CellMenu} from "@bokeh/slickgrid/plugins/slick.cellmenu"
+import {CellMenu, Menu, CallbackArgs} from "@bokeh/slickgrid/plugins/slick.cellmenu"
 // @ts-ignore
 import cellmenu_css from "./slick.cellmenu.css"
 import * as p from "@bokehjs/core/properties"
@@ -82,13 +86,31 @@ export namespace ActionMenuColumn {
   export type Attrs = p.AttrsOf<Props>
 
   export type Props = TableColumn.Props & {
+    menu: p.Property<(string | [string, string | CallbackLike1<ActionMenuColumn, {row: number, item: Item}>] | null)[]>
   }
 }
 
 export interface ActionMenuColumn extends ActionMenuColumn.Attrs {}
 
 type CellMenuColumnType = ColumnType & {
-  cellMenu: any,
+  cellMenu: Menu<Item>
+}
+
+function event(event_name: string) {
+  return function(cls: Class<BokehEvent>) {
+    cls.prototype.event_name = event_name
+  }
+}
+
+@event("action_menu_click")
+export class ActionMenuClick extends ModelEvent {
+  constructor(readonly item: string, readonly row: number, readonly value: any) {
+    super()
+  }
+  protected _to_json(): JSON {
+    const {item, row, value} = this
+    return {...super._to_json(), item, row, value}
+  }
 }
 
 export class ActionMenuColumn extends TableColumn {
@@ -100,16 +122,31 @@ export class ActionMenuColumn extends TableColumn {
   }
 
   static init_ActionMenuColumn(): void {
-    this.define<ActionMenuColumn.Props>({})
+    this.define<ActionMenuColumn.Props>({
+      menu: [ p.Array, [] ],
+    })
     this.override({
-      width: 50,
+      width: 100,
     })
   }
 
   toColumn(): ColumnType {
     const actionFormatter: Formatter<Item> = (_row, _cell, _value, _columnDef, _dataContext) => {
-      return `<div class="bk bk-btn bk-btn-default">Action <i class="fa fa-caret-down"></i></div>`;
+      return `<div class="bk bk-btn bk-btn-default">Action ⬇</div>`;
     };
+    const items = this.menu.map((item, i) => {
+      if (item == null)
+	return {divider: true}
+      else {
+	const title = isString(item) ? item : item[0]
+	const valueOrCallback = isString(item) ? item : item[1]
+	return {
+	  command: valueOrCallback,
+	  title: title,
+	  action: (_event: DOMEvent, args: CallbackArgs<Item>) => this._item_click(i, args),
+	}
+      }
+    })
     const info: CellMenuColumnType = {
       id: uniqueId(),
       field: this.field,
@@ -118,12 +155,22 @@ export class ActionMenuColumn extends TableColumn {
       resizable: false,
       formatter: actionFormatter,
       cellMenu: {
-	commandItems: [
-	  { command: "cancel", title: "Cancel" },
-	],
+	commandItems: items,
       },
       sortable: false,
     }
     return info
+  }
+  protected _item_click(i: number, args: CallbackArgs<Item>): void {
+    const item = this.menu[i]
+    if (item != null) {
+      const value_or_callback = isString(item) ? item : item[1]
+      if (isString(value_or_callback)) {
+	const value = args.column.field != null ? args.dataContext[args.column.field] : null
+        this.trigger_event(new ActionMenuClick(value_or_callback, args.row, value))
+      } else {
+        value_or_callback.execute(this, {row: args.row, item: args.dataContext})
+      }
+    }
   }
 }

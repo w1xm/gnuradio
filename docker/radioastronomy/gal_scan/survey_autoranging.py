@@ -16,6 +16,7 @@ import logging
 import os.path
 import itertools
 import time
+import threading
 import csv
 from collections import namedtuple
 import plot
@@ -149,6 +150,7 @@ class Survey:
         self.iterator = iterator_cls(**vars(args))
         self.repeat = args.repeat or 1
         self.last_row = {}
+        self.want_abort = threading.Event()
 
     def run(self, tb):
         try:
@@ -187,6 +189,9 @@ class Survey:
     def coords(self):
         return itertools.chain(*((self.iterator,)*self.repeat))
 
+    def abort(self):
+        self.want_abort.set()
+
     def _run_survey(self, tb, ref_frequency=HYDROGEN_FREQ):
         savefolder = self.args.output_dir
         int_time = self.args.int_time
@@ -224,6 +229,8 @@ class Survey:
                 for darksky in (False, True):
                     if darksky and not darksky_offset:
                         continue
+                    if self.want_abort.is_set():
+                        return
                     apytime=get_time()
                     aaf = altaz_frame(apytime, obswl=freq.to(u.cm, u.spectral()))
                     if pos.frame.name == 'altaz':
