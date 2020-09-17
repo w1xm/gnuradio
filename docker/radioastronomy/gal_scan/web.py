@@ -304,7 +304,7 @@ class SessionHandler(Handler):
 
         azimuth = Knob(title="Azimuth", max=360, min=0, unit="°")
         elevation = Knob(title="Elevation", max=360, min=0, unit="°")
-        rx_power = Knob(title="RX Power", digits=4, decimals=1, unit="dBm/Hz")
+        rx_power = Knob(title="Average RX Power", digits=4, decimals=1, unit="dBm/Hz")
         plot.stream.js_on_change("streaming", CustomJS(
             args = dict(rx_power=rx_power),
             code = """
