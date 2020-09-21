@@ -11,7 +11,10 @@ class Weather:
     def __init__(self, callback, station="KB1DML"):
         self.callback = callback
         self.station = station
-        self._fetch_latest()
+        try:
+            self._fetch_latest()
+        except:
+            self.logger.exception('fetching latest observation')
         logging.getLogger('aprslib.parsing').setLevel(logging.INFO)
         logging.getLogger('aprslib.inet.IS').setLevel(logging.INFO)
         logging.getLogger('chardet.charsetprober').setLevel(logging.INFO)

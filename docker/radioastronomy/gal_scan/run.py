@@ -56,11 +56,7 @@ class radiotelescope(flowgraph):
             self.client.set_elevation_position(el)
             time.sleep(1)
             status = self.client.status
-            if status.get("ShutdownError") == 11:
-                # Ignore elevation overvelocity
-                self.logger.warning('Elevation overvelocity shutdown. Resetting.')
-                self.client.i_know_what_i_am_doing_unsafe_exit_shutdown()
-            elif not status.get("Moving"):
+            if not status.get("Moving"):
                 return
             self.logger.debug('Still moving, current position (%g, %g).', self.client.azimuth_position, self.client.elevation_position)
 
@@ -129,7 +125,7 @@ def main(top_block_cls=radiotelescope, options=None):
         format="%(asctime)-15s %(levelname)-8s [%(name)s] [%(module)s:%(funcName)s] %(message)s",
         level=logging.DEBUG,
     )
-    args = parse_args(args)
+    args = parse_args(sys.argv)
 
     client = rci.client.Client(client_name='gal_scan')
     client.set_offsets(AZ_OFFSET, EL_OFFSET)
