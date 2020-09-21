@@ -25,10 +25,10 @@ if lime:
     sdr = LimeSDRDevice(serial='0009060B00471B22', device_type=LimeSDRUSB, lna_path=LNAL, sample_rate=6e6)
 
     ## TODO(quentin): Link up with rotator
-    d = shinysdr.plugins.hamlib.connect_to_rotctld(config.reactor, host='w1xm-radar-1.mit.edu', port=4533)
-    d.addCallback(lambda rotator: config.devices.add(u'dish', sdr, PositionedDevice(42.360326, -71.089324), rotator))
-    config.wait_for(d)
-
+    #d = shinysdr.plugins.hamlib.connect_to_rotctld(config.reactor, host='w1xm-radar-1.mit.edu', port=4533)
+    #d.addCallback(lambda rotator: config.devices.add(u'dish', sdr, PositionedDevice(42.360326, -71.089324), rotator))
+    #config.wait_for(d)
+    config.devices.add(u'dish', sdr, PositionedDevice(42.360326, -71.089324))
 from shinysdr.plugins.flightradar24 import Flightradar24
 config.devices.add(u'flightradar24', Flightradar24(config.reactor, bounds=(47,37, -76,-66)))
 
