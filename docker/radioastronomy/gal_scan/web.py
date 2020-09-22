@@ -29,6 +29,7 @@ import tornado.web
 from tornado.web import HTTPError
 from tornado.escape import xhtml_escape
 from zipstream import AioZipStream
+from zipstream import consts as zconsts
 import rci.client
 from galcoord import radome_observer
 import run
@@ -612,6 +613,55 @@ async def empty():
     if False:
         yield
 
+# Monkey patch to fix the constant
+zconsts.DD_MAGIC = b'\x50\x4b\x07\x08'
+
+class AioDirZipStream(AioZipStream):
+    def _create_file_struct(self, data):
+        file_struct = super()._create_file_struct(data)
+        if data['name'][-1] == '/':
+            # Clear the data descriptor flag for directories
+            file_struct['flags'] &= ~0b00001000
+        return file_struct
+
+    def _make_cdir_file_header(self, file_struct):
+        fields = {"signature": zconsts.CDFH_MAGIC,
+                  # N.B. zipstream's struct definition has these flipped
+                  "version": 0x03,  # 0x03 - unix
+                  "system": zconsts.ZIP32_VERSION,
+                  "version_ndd": zconsts.ZIP32_VERSION,
+                  "flags": file_struct['flags'],
+                  "compression": file_struct['cmpr_id'],
+                  "mod_time": file_struct['mod_time'],
+                  "mod_date": file_struct['mod_date'],
+                  "uncomp_size": file_struct.get('size', 0),
+                  "comp_size": file_struct.get('csize', 0),
+                  "offset": file_struct['offset'],  # < file header offset
+                  "crc": file_struct['crc'],
+                  "fname_len": len(file_struct['fname']),
+                  "extra_len": 0,
+                  "fcomm_len": 0,  # comment length
+                  "disk_start": 0,
+                  "attrs_int": 0,
+                  "attrs_ext": 0}
+        logging.debug("Packing %s", file_struct['fname'])
+        if file_struct['fname'].endswith(b'/'):
+            fields['attrs_ext'] = (0o40755 << 16)# | 0x10 # | 0o40000
+        else:
+            fields['attrs_ext'] = (0o100644 << 16)
+        cdfh = zconsts.CDLF_TUPLE(**fields)
+        cdfh = zconsts.CDLF_STRUCT.pack(*cdfh)
+        cdfh += file_struct['fname']
+        return cdfh
+
+    async def _stream_single_file(self, file_struct):
+        if file_struct['fname'].endswith(b'/'):
+            # Directories have no contents
+            yield self._make_local_file_header(file_struct)
+            return
+        async for chunk in super()._stream_single_file(file_struct):
+            yield chunk
+
 class DirectoryHandler(tornado.web.RequestHandler):
     def initialize(self, path):
         self.root = path
@@ -633,7 +683,7 @@ class DirectoryHandler(tornado.web.RequestHandler):
                 ]
                 self.set_header('Content-Type', 'application/zip')
                 self.set_header('Content-Disposition', 'attachment; filename="%s.zip"' % os.path.basename(abspath).replace(':', '_').replace('\\', '\\\\').replace('"', '\\"'))
-                async for chunk in AioZipStream(files, chunksize=1024*1024).stream():
+                async for chunk in AioDirZipStream(files, chunksize=1024*1024).stream():
                     self.write(chunk)
                     await self.flush()
                 return self.finish()
