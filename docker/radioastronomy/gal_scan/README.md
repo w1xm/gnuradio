@@ -14,10 +14,26 @@ requires GNU Radio, astropy, astroplan, numpy, and matplotlib.
 
 ## Running
 
-`gal_scan` is typically invoked as a Docker container. At MIT, we
-launch the Docker container using a wrapper script that attaches the
-correct radio and dish control hardware. A sample invocation of
-`gal_scan` looks like:
+### Web interface
+
+All functions of `gal_scan` are available in a Bokeh web
+interface. Contact your supervisor for access information.
+
+![gal_scan UI](img/manual.png)
+
+The web UI has four tabs, in order. `Manual` allows manual control of
+the telescope. `Plan` shows all of the settings for a survey (each
+control matches a command-line parameter described below). `Queue`
+shows the surveys currently running and queued, and has a cancel
+option to interrupt an in-progress survey. `Results` allows accessing
+the data files produced by a previous survey.
+
+### Command-line interface
+
+`gal_scan` can be invoked as a Docker container. At MIT, we launch the
+Docker container using a wrapper script that attaches the correct
+radio and dish control hardware. A sample invocation of `gal_scan`
+looks like:
 
 ```
 grrun -t w1xm/radioastronomy/gal_scan /flowgraph/run.py --step=2.5 --int-time=60 run_quentin_20200326/
@@ -57,6 +73,18 @@ the step size and integration time: a 10x10 grid such as the one above
 will take 100 observations, which at an integration time of 60 seconds
 will take almost two hours.
 
+### Solar grid mode
+
+With `--mode=solar_grid`, `gal_scan` will survey a grid around a solar
+system body. `--start`, `--stop`, and `--step` are interpreted as for
+`--mode=grid`. The solar system body can be specified with
+`--body-name`. For example, to survey a 10°x10° grid
+around the moon, `gal_scan` can be invoked as:
+
+```
+grrun -t w1xm/radioastronomy/gal_scan /flowgraph/run.py --start=-5 --step=5 --stop=5 --mode=solar_grid --body-name=moon --int-time=10 ~/moon_202005021248
+```
+
 ## Output
 
 `gal_scan` produces multiple data files and plots in the specified
@@ -86,7 +114,28 @@ run_20200415$ ../path/to/plot.py
 
 Unlike `run.py`, `plot.py` does not require talking to radio and dish
 control hardware, so it can be run from a local checkout on your
-machine.
+machine. `plot.py` takes a set of command line arguments for customizing the plots that are generated:
+
+```
+run_20200415$ ../path/to/plot.py --help
+usage: plot.py [-h] [--xaxes [XAXES [XAXES ...]]] [--yaxis YAXIS]
+               [--max-pointing-error DEGREES] [--recalculate-velocities]
+               [--skip-1d]
+
+Replot existing data
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --xaxes [XAXES [XAXES ...]]
+                        axes to plot
+  --yaxis YAXIS         yaxis to plot
+  --max-pointing-error DEGREES
+                        reject observations where abs(rci_azimuth-azimuth) >
+                        DEGREES
+  --recalculate-velocities
+                        recalculate velocities
+  --skip-1d             skip generating 1D plots
+```
 
 In addition, instead of generating PDF files, these plots can be
 interactively viewed by running `plot.py` inside
@@ -100,7 +149,21 @@ In [1]: %run ../plot.py
 ### Manual data analysis and plotting
 
 The data files can also be loaded into a Numpy session and plotted
-with varying parameters:
+with varying parameters. The easiest way is to reuse the `plot` module from `gal_scan`:
+
+```Python
+# ipython3 --pylab
+from plot import *
+
+all_data = load_data('/Users/quentin/run_2020-08-25T23:41:26/')
+# all_data is an astropy.QTable, which is a collection of Numpy arrays.
+# all_data['latitude'] is a 1D array of Galactic latitudes, for instance
+
+averaged_data = average_data(all_data, ['mode'])
+plot_velocity(averaged_data[0]['vels'], averaged_data[0]['data'], 'All samples', None)
+```
+
+In addition, there are bare Numpy files if you would like to do analysis completely separate from Astropy:
 
 ```Python
 import matplotlib.pyplot as plt
@@ -130,9 +193,9 @@ imports already done for you can be obtained with `ipython --pylab`.
 The full parameters that `gal_scan` supports are listed below:
 
 ```
-usage: run.py [-h] [--int-time INT_TIME] [--gain GAIN] [--mode {az,gal,grid}]
-              [--step STEP] [--start START] [--stop STOP] [--lat LAT]
-              [--lon LON]
+usage: run.py [-h] [--sdr-frequency SDR_FREQUENCY] [--bandwidth HZ] [--int-time seconds] [--gain dB] [--repeat REPEAT] [--ref] [--mode {gal,az,grid,solar_grid}]
+              [--start START] [--stop STOP] [--step STEP] [--darksky-offset °] [--obj-name OBJ_NAME] [--lat °] [--lon °] [--rotation °]
+              [--rotation-frame {icrs,galactic}] [--body-name {earth,sun,moon,mercury,venus,earth-moon-barycenter,mars,jupiter,saturn,uranus,neptune}]
               DIRECTORY
 
 Galactic sky scan
@@ -142,14 +205,34 @@ positional arguments:
 
 optional arguments:
   -h, --help            show this help message and exit
-  --int-time INT_TIME   integration time
-  --gain GAIN           SDR gain
-  --mode {az,gal,grid}
-  --step STEP           position step size
-  --start START         starting position
-  --stop STOP           ending position
-  --lat LAT             galactic latitude to scan (for grid mode)
-  --lon LON             galactic longitude to scan (for grid mode)
+  --sdr-frequency SDR_FREQUENCY
+                        change SDR frequency
+  --bandwidth HZ        change filter bandwidth
+
+General:
+  --int-time seconds    integration time
+  --gain dB             SDR gain
+  --repeat REPEAT       number of times to repeat scan
+  --ref                 measure 50Ω reference load
+
+Iterator:
+  --mode {gal,az,grid,solar_grid}
+  --start START         start
+  --stop STOP           end
+  --step STEP           step
+  --darksky-offset °    darksky offset
+
+mode=grid:
+  --obj-name OBJ_NAME   named object
+  --lat °               center galactic latitude
+  --lon °               center galactic longitude
+  --rotation °          grid rotation
+  --rotation-frame {icrs,galactic}
+                        grid rotation frame
+
+mode=solar_grid:
+  --body-name {earth,sun,moon,mercury,venus,earth-moon-barycenter,mars,jupiter,saturn,uranus,neptune}
+                        solar body
 ```
 
 `--start` and `--stop` can be used to limit the scan to a portion of
