@@ -304,7 +304,7 @@ class SessionHandler(Handler):
 
         azimuth = Knob(title="Azimuth", max=360, min=0, unit="°")
         elevation = Knob(title="Elevation", max=360, min=0, unit="°")
-        rx_power = Knob(title="Average RX Power", digits=4, decimals=1, unit="dBm/Hz")
+        rx_power = Knob(title="Average RX Power", digits=4, decimals=1, unit="dB(mW/Hz)")
         plot.stream.js_on_change("streaming", CustomJS(
             args = dict(rx_power=rx_power),
             code = """
@@ -624,15 +624,15 @@ class DirectoryHandler(tornado.web.RequestHandler):
 
         if os.path.isdir(abspath):
             if self.get_argument('zip', False) != False:
-                files = [{'name': os.path.basename(abspath) + '/', 'stream': empty()}] + [
+                files = [{'name': os.path.basename(abspath).replace(':', '_') + '/', 'stream': empty()}] + [
                     {
                         'file': os.path.join(abspath, name),
-                        'name': os.path.join(os.path.basename(abspath), name),
+                        'name': os.path.join(os.path.basename(abspath), name).replace(':', '_'),
                     }
                     for name in sorted(os.listdir(abspath))
                 ]
                 self.set_header('Content-Type', 'application/zip')
-                self.set_header('Content-Disposition', 'attachment; filename="%s.zip"' % os.path.basename(abspath).replace('\\', '\\\\').replace('"', '\\"'))
+                self.set_header('Content-Disposition', 'attachment; filename="%s.zip"' % os.path.basename(abspath).replace(':', '_').replace('\\', '\\\\').replace('"', '\\"'))
                 async for chunk in AioZipStream(files, chunksize=1024*1024).stream():
                     self.write(chunk)
                     await self.flush()

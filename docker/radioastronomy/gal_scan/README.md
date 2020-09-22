@@ -155,7 +155,7 @@ with varying parameters. The easiest way is to reuse the `plot` module from `gal
 # ipython3 --pylab
 from plot import *
 
-all_data = load_data('/Users/quentin/run_2020-08-25T23:41:26/')
+all_data = load_data('/Users/quentin/Downloads/all_data.fits')
 # all_data is an astropy.QTable, which is a collection of Numpy arrays.
 # all_data['latitude'] is a 1D array of Galactic latitudes, for instance
 
@@ -163,16 +163,19 @@ averaged_data = average_data(all_data, ['mode'])
 plot_velocity(averaged_data[0]['vels'], averaged_data[0]['data'], 'All samples', None)
 ```
 
-In addition, there are bare Numpy files if you would like to do analysis completely separate from Astropy:
+In addition, there are bare Numpy files if you would like to do
+analysis completely separate from Astropy. Be aware that Numpy is not
+unit-aware so you can more easily make plotting mistakes.
 
 ```Python
 import matplotlib.pyplot as plt
 import matplotlib.colors
 import numpy as np
 
-contour_vels = np.load('contour_vels.npy')
-contour_longs = np.load('contour_longitude.npy')
-contour_data = np.load('contour_data.npy')
+all_data = np.load('all_data.npy')
+contour_vels = all_data['vels']
+contour_longs = all_data['longitude']
+contour_data = all_data['data']
 
 plt.figure()
 plt.xlabel('Velocity (km/s)')

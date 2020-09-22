@@ -29,6 +29,7 @@ from astropy.coordinates import Angle, Latitude, Longitude, SkyCoord
 from astropy.table import QTable, Column, ColumnGroups
 from astropy.time import Time
 from astropy.io import fits
+from astropy.io.registry import IORegistryError
 from scipy import ndimage
 from scipy.interpolate import griddata
 import matplotlib as mpl
@@ -440,7 +441,10 @@ def load_data(savefolder='.'):
         - 'darksky' indicates if the observation was a darksky correction (use 'number' to correlate darksky (False, True))
     """
     try:
-        all_data = QTable.read(os.path.join(savefolder, 'all_data.fits'))
+        fits_path = savefolder
+        if os.path.isdir(fits_path):
+            fits_path = os.path.join(savefolder, 'all_data.fits')
+        all_data = QTable.read(fits_path)
         for field, unit in COLUMN_UNITS.items():
             if field in all_data.columns and not all_data[field].unit:
                 all_data[field].unit = unit
@@ -451,7 +455,7 @@ def load_data(savefolder='.'):
             # I have no idea why this is necessary but sometimes this attribute is None :(
             column.info.indices = []
         return all_data
-    except IOError:
+    except (IOError, IORegistryError):
         # Revert to loading legacy data
         pass
     try:

@@ -271,6 +271,8 @@ class Survey:
                         'gain': gain,
                         'number': number,
                         'data': data,
+                        'average_power': np.mean(data),
+                        'average_power_log': np.mean(data).to(u.dB(u.mW / u.Hz)),
                         'freqs': freq_range,
                         'time': apytime.value*u.second,
                         'temperature': pos_altaz.frame.temperature,
