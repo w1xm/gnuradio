@@ -43,6 +43,15 @@ class iterator(object):
     def coords(self):
         raise NotImplementedError('coords was not overridden')
 
+    @property
+    def coords_now(self):
+        pos = self.coords
+        if pos.frame.name == 'altaz':
+            aaf = altaz_frame(get_time())
+            # Replace altaz frame with one that has obstime and location
+            return SkyCoord(pos, frame=aaf)
+        return pos
+
     def __iter__(self):
         return iter(self.coords)
 
@@ -165,7 +174,7 @@ class Survey:
 
     @property
     def coord_groups(self):
-        pos = self.iterator.coords._apply(np.tile, self.repeat)
+        pos = self.iterator.coords_now._apply(np.tile, self.repeat)
         number = self.last_row.get('number', -1)
         done_pos = pos[:number+1]
         remaining_pos = pos[number+1:]
@@ -173,13 +182,10 @@ class Survey:
 
     @property
     def time_remaining(self):
-        pos = self.coord_groups[0]
-        aaf = altaz_frame(get_time())
-        if pos.frame.name == 'altaz':
-            # Replace altaz frame with one that has obstime and location
-            pos_altaz = SkyCoord(pos, frame=aaf)
-        else:
-            pos_altaz = pos.transform_to(aaf)
+        pos_altaz = self.coord_groups[0]
+        if pos_altaz.frame.name != 'altaz':
+            aaf = altaz_frame(get_time())
+            pos_altaz = pos_altaz.transform_to(aaf)
         above_horizon = len(pos_altaz[pos_altaz.alt >= EL_OFFSET*u.degree])
         if self.args.darksky_offset:
             above_horizon *= 2

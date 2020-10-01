@@ -537,7 +537,7 @@ class SessionHandler(Handler):
                 out['plan_message'] = 'Estimated runtime: %s' % (survey.time_remaining.to_datetime())
                 if tabs.tabs[tabs.active] == automated:
                     # TODO: Use the underlying numpy arrays
-                    sc = survey.iterator.coords.icrs
+                    sc = survey.iterator.coords_now.icrs
                     for i, sc in enumerate(sc[:1000]):
                         pointers['ra'].append(sc.ra.to(u.degree).value)
                         pointers['dec'].append(sc.dec.to(u.degree).value)
