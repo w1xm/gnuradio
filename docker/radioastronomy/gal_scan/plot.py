@@ -94,13 +94,13 @@ def find_shift(all_data, axis):
     all_data = all_data.copy()
     all_data.sort(axis)
     axis_data = all_data[axis]
-    if not axis_data.unit or not axis_data.unit.is_equivalent(u.degree) or isinstance(axis_data, Latitude):
+    if not axis_data.unit or not axis_data.unit.is_equivalent(u.degree) or isinstance(axis_data, Latitude) or len(axis_data) < 2:
         return all_data
     diffs = np.diff(axis_data)
     adiffs = np.abs(diffs)
     gap_index = adiffs.argmax()
     gap = adiffs[gap_index]
-    if gap > 3*np.median(adiffs[adiffs!=0]):
+    if gap > 3*np.median(adiffs[adiffs!=0]) or (len(adiffs[adiffs!=0]) == 2 and gap > 3*adiffs[adiffs!=0][0]):
         # We found a gap > 3x the median nonzero gap. This probably means
         # there was a discontinuity in the plot when the scan wrapped
         # around the horizon.
@@ -108,7 +108,7 @@ def find_shift(all_data, axis):
 
         # Remove gap_index rows from the axis and data arrays and prepend those rows.
         gap_index += 1
-        if isinstance(axis_data, Longitude):
+        if hasattr(axis_data, 'wrap_at'):
             wrap_at = axis_data[gap_index]-(gap/2)
             print("Wrapping %s angles at %s" % (axis, wrap_at))
             all_data[axis] = axis_data.wrap_at(wrap_at)
@@ -215,7 +215,11 @@ def plot_2d(all_data, xaxis, yaxis='freqs', zaxis='data', cmap=TURBO_CMAP, savef
     if len(contour_data.shape) == 1:
         # The points might not be in a grid, so make them into a grid
         # TODO: Figure out if they are actually a grid and if so skip the interpolation.
-        xdata, ydata, contour_data = oned2twod(xdata, ydata, contour_data)
+        xdata, ydata, contour_data, sparse = oned2twod(xdata, ydata, contour_data)
+        if sparse:
+            # TODO: Figure out how to render this effectively?
+            print("Skipped due to sparse data")
+            return
     # Some fields are scalar
     if xdata.shape != contour_data.shape:
         xdata = np.broadcast_to(xdata, reversed(contour_data.shape)).transpose()
@@ -226,15 +230,15 @@ def plot_2d(all_data, xaxis, yaxis='freqs', zaxis='data', cmap=TURBO_CMAP, savef
     # The minimum is selected as the median value in the background portion of the plot.
     # The maximum is the 95th percentile value across the whole plot.
     if zaxis == 'data':
-        vmin = np.percentile(contour_data[:, CORRECTION_POLY_POINTS], 50)
+        vmin = np.nanpercentile(contour_data[:, CORRECTION_POLY_POINTS], 50)
     else:
-        vmin = np.percentile(contour_data, 5)
-    vmax = np.percentile(contour_data, 95)
+        vmin = np.nanpercentile(contour_data, 5)
+    vmax = np.nanpercentile(contour_data, 95)
 
     with figure('contour'):
         cntr = plt.contourf(xdata, ydata,
                             np.clip(
-                                contour_data,
+                                np.nan_to_num(contour_data, nan=vmin),
                                 vmin, vmax),
                             100,
                             extend='both',
@@ -278,12 +282,12 @@ def oned2twod(xdata, ydata, zdata):
         yu = np.broadcast_to(
             yu,
             zz.shape)
-        return xu, yu, zz
+        return xu, yu, zz, False
     # If it's a sparse grid something weird might have happened
-    print("2D data is sparse; wrong coordinate frame?")
+    print("2D data is sparse (%d of %d points missing); wrong coordinate frame?" % (np.isnan(zz).sum(), zz.size))
     yy, xx = np.meshgrid(ydata,xdata)
     zz = griddata((xdata,ydata), zdata, (xx,yy), method='linear')
-    return xx, yy, zz * zdata.unit
+    return xx, yy, zz * zdata.unit, True
 
 def center_mesh_coords(data):
     """Shift coordinates in data by one half step,
@@ -368,7 +372,7 @@ def average_data(all_data, keys, velocity_correction=True):
         if col.info.name in keep:
             # Keep columns get passed through
             new_col = col[i0s]
-        elif col.info.name in ('data', 'normalized_data', 'average_power'):
+        elif col.info.name in ('data', 'normalized_data', 'calibrated_data', 'average_power'):
             # Data gets averaged (with optional velocity correction)
             if len(col.shape) > 1 and velocity_correction and 'vels' in all_data.columns:
                 data = np.vstack(tuple(
@@ -718,7 +722,7 @@ def plot(all_data, xaxes=None, yaxis=None, skip_1d=False, outlier_percentile=Non
         plot_sets = [{'xaxis': x} for x in xaxes]
         if 'skyoffset_latitude' in all_data.columns and 'skyoffset_longitude' in all_data.columns:
             plot_sets.append({'xaxis': 'skyoffset_longitude', 'yaxis': 'skyoffset_latitude', 'zaxis': 'average_power', 'skip_1d': True})
-        if 'latitude' in all_data.columns and 'longitude' in all_data.columns:
+        if mode == 'grid' and 'latitude' in all_data.columns and 'longitude' in all_data.columns:
             plot_sets.append({'xaxis': 'longitude', 'yaxis': 'latitude', 'zaxis': 'average_power', 'skip_1d': True})
 
     # Fill in default yaxis if unspecified
