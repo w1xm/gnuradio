@@ -229,7 +229,7 @@ def plot_2d(all_data, xaxis, yaxis='freqs', zaxis='data', cmap=TURBO_CMAP, savef
     # Calculate reasonable bounds for the Z axis.
     # The minimum is selected as the median value in the background portion of the plot.
     # The maximum is the 95th percentile value across the whole plot.
-    if zaxis == 'data':
+    if zaxis in ('data', 'normalized_data', 'calibrated_data'):
         vmin = np.nanpercentile(contour_data[:, CORRECTION_POLY_POINTS], 50)
     else:
         vmin = np.nanpercentile(contour_data, 5)
@@ -566,6 +566,8 @@ def main():
     #                    help='reject the first and last PERCENT runs as outliers')
     parser.add_argument('--max-pointing-error', metavar='DEGREES', type=Angle, default=2*u.degree,
                         help='reject observations where abs(rci_azimuth-azimuth) > DEGREES')
+    parser.add_argument('--min-elevation', metavar='DEGREES', type=Angle, default=None,
+                        help='reject observations where elevation < DEGREES (defaults to 2 if not az scan)')
     parser.add_argument('--recalculate-velocities', action='store_true',
                         help='recalculate velocities')
     parser.add_argument('--skip-1d', action='store_true',
@@ -586,7 +588,7 @@ def structured_to_unstructured(a):
     """
     return np.stack([a[f] for f in a.dtype.names], axis=1)
 
-def remove_pointing_error(all_data, max_pointing_error):
+def remove_pointing_error(all_data, max_pointing_error, min_elevation):
     if max_pointing_error is not None and set(all_data.colnames).issuperset(('azimuth', 'elevation', 'rci_azimuth', 'rci_elevation')):
         count = len(all_data)
         cmd_pos = u.Quantity(structured_to_unstructured(all_data[['azimuth', 'elevation']]))
@@ -594,6 +596,8 @@ def remove_pointing_error(all_data, max_pointing_error):
         obs_pos = structured_to_unstructured(all_data[['rci_azimuth', 'rci_elevation']])
         obs_pos[obs_pos[:,1] > 180*u.degree, 1] -= 360*u.degree
         all_data['bad'] = np.linalg.norm(cmd_pos-obs_pos, axis=1) > max_pointing_error
+        if min_elevation is not None:
+            all_data['bad'] = all_data['bad'] | (all_data['elevation'].wrap_at(180*u.degree) < min_elevation)
 
         # TODO: Just leave the bad rows in all_data and have normalize_data filter them out?
         bad_data = all_data[all_data['bad']]
@@ -672,7 +676,7 @@ def project_image(all_data, xaxis):
     header['CROTA2'] = 0
     return fits.PrimaryHDU(proj, header)
 
-def plot(all_data, xaxes=None, yaxis=None, skip_1d=False, outlier_percentile=None, max_pointing_error=2*u.degree, recalculate_velocities=False, savefolder=None):
+def plot(all_data, xaxes=None, yaxis=None, skip_1d=False, outlier_percentile=None, max_pointing_error=2*u.degree, min_elevation=None, recalculate_velocities=False, savefolder=None):
     """Regenerate all default plots for all_data"""
 
     def path(name):
@@ -688,7 +692,14 @@ def plot(all_data, xaxes=None, yaxis=None, skip_1d=False, outlier_percentile=Non
     all_data = normalize_data(all_data)
     all_data['average_power'] = np.mean(all_data['data'], axis=1)
 
-    all_data, bad_data = remove_pointing_error(all_data, max_pointing_error)
+    mode = None
+    if 'mode' in all_data.columns:
+        mode = all_data['mode'][0]
+
+    if min_elevation is None and mode and mode not in ('az',):
+        min_elevation = 2*u.degree
+
+    all_data, bad_data = remove_pointing_error(all_data, max_pointing_error, min_elevation)
 
     has_darksky = 'darksky' in fields
     if has_darksky:
@@ -698,10 +709,6 @@ def plot(all_data, xaxes=None, yaxis=None, skip_1d=False, outlier_percentile=Non
         plot_freq(None, darksky_obs[0]['freqs'], np.mean(darksky_obs['data'], axis=0), 'Average Darksky Measurement', path('darksky.pdf'))
 
         all_data['calibrated_average_power'] = np.mean(all_data['data'], axis=1)
-
-    mode = None
-    if 'mode' in all_data.columns:
-        mode = all_data['mode'][0]
 
     if xaxes:
         # User asked for a specific set of plots; just do that.
