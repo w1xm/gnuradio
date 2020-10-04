@@ -705,23 +705,26 @@ def plot(all_data, xaxes=None, yaxis=None, skip_1d=False, outlier_percentile=Non
     else:
         all_axes = set(all_data.columns)
         xaxes = all_axes - set('freqs vels data'.split())
+        # rci_azimuth is not generally useful because it's not repeatable
         if mode == 'az':
-            xaxes = 'number azimuth rci_azimuth'.split()
+            xaxes = 'number azimuth'.split()
         elif mode == 'gal':
-            xaxes = 'number rci_azimuth longitude'.split()
+            xaxes = 'number longitude'.split()
         elif mode == 'grid':
-            xaxes = 'number rci_azimuth longitude latitude'.split()
+            xaxes = 'number longitude latitude'.split()
         elif mode == 'solar_grid':
             xaxes = 'number skyoffset_latitude skyoffset_longitude'.split()
         xaxes = all_axes & set(xaxes)
         plot_sets = [{'xaxis': x} for x in xaxes]
         if 'skyoffset_latitude' in all_data.columns and 'skyoffset_longitude' in all_data.columns:
             plot_sets.append({'xaxis': 'skyoffset_longitude', 'yaxis': 'skyoffset_latitude', 'zaxis': 'average_power', 'skip_1d': True})
+        if 'latitude' in all_data.columns and 'longitude' in all_data.columns:
+            plot_sets.append({'xaxis': 'longitude', 'yaxis': 'latitude', 'zaxis': 'average_power', 'skip_1d': True})
 
     # Fill in default yaxis if unspecified
     if not yaxis:
         yaxis = 'freqs'
-        if 'vels' in all_data.columns and mode != 'solar_grid':
+        if 'vels' in all_data.columns and mode not in ('az', 'solar_grid'):
             yaxis = 'vels'
     for p in plot_sets:
         if not 'yaxis' in p:
@@ -733,18 +736,17 @@ def plot(all_data, xaxes=None, yaxis=None, skip_1d=False, outlier_percentile=Non
         if 'zaxis' in p:
             plot_sets.append(p)
         else:
-            zaxes = ['average_power']
-            if p['yaxis'] in ('freqs', 'vels'):
-                zaxes = ['data']
+            if p['yaxis'] not in ('freqs', 'vels'):
+                plot_sets.append(dict(zaxis='average_power', **p))
+            else:
+                plot_sets.append(dict(zaxis='data', **p))
                 # Plot raw data and either calibrated data or normalized data
                 if 'calibrated_data' in all_data.columns:
-                    zaxes.append('calibrated_data')
-                elif mode != 'solar_grid':
+                    plot_sets.append(dict(zaxis='calibrated_data', skip_1d=True, **p))
+                elif mode not in ('az', 'solar_grid'):
                     # Don't try to normalize black-body data.
                     # TODO: Check if center freq is hydrogen instead of just checking mode.
-                    zaxes.append('normalized_data')
-            for zaxis in zaxes:
-                plot_sets.append(dict(zaxis=zaxis, **p))
+                    plot_sets.append(dict(zaxis='normalized_data', skip_1d=True, **p))
 
     print("Plotting:", plot_sets)
 
