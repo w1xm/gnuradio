@@ -179,7 +179,8 @@ class SessionHandler(Handler):
     def enqueue_action(self, name, callable, allow_queue=False, **kwargs):
         with self.actions_cv:
             if self.actions:
-                if not allow_queue:
+                # Don't allow manual commands if a survey is queued
+                if not allow_queue and sum(1 for a in self.actions if a.get('survey')):
                     logging.warning("Busy; ignoring manual command")
                     return
                 logging.info("Busy; enqueueing %s", name)
@@ -354,10 +355,17 @@ class SessionHandler(Handler):
         bandwidth = Knob(title="filter bandwidth", writable=False, value=self.tb.get_bandwidth(), digits=7, decimals=0, unit="Hz")
         bandwidth.on_change('value', lambda name, old, new: self.set_bandwidth(new))
 
+        reset = Button(label="Reset")
+        def on_reset():
+            gain.value = run.flowgraph_defaults['sdr_gain']
+            frequency.value = run.flowgraph_defaults['sdr_frequency']
+            bandwidth.value = run.flowgraph_defaults['bandwidth']
+        reset.on_click(on_reset)
+
         manual = Panel(title="Manual", child=column(
             row(rx, gain),
-            frequency,
-            bandwidth,
+            row(frequency, bandwidth),
+            reset,
         ))
 
         run_models = {}
