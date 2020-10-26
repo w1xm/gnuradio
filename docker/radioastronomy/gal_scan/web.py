@@ -309,7 +309,9 @@ class SessionHandler(Handler):
         plot.set_y_axis([0, 10])
         plot.set_y_label("Power at feed (zW / Hz)")
         plot.set_x_label("Frequency (MHz)")
-        plot.set_x_values(np.linspace(self.tb.get_sdr_frequency()-(self.tb.get_output_vector_bandwidth()/2), self.tb.get_sdr_frequency()+(self.tb.get_output_vector_bandwidth()/2), self.tb.get_num_channels())/1e6)
+        def set_x_values():
+            plot.set_x_values(np.linspace(self.tb.get_sdr_frequency()-(self.tb.get_output_vector_bandwidth()/2), self.tb.get_sdr_frequency()+(self.tb.get_output_vector_bandwidth()/2), self.tb.get_num_channels())/1e6)
+        set_x_values()
         plot.enable_axis_labels(True)
         plot.set_layout(1,0)
         plot.enable_max_hold()
@@ -350,7 +352,7 @@ class SessionHandler(Handler):
         frequency.on_change('value', lambda name, old, new: self.set_frequency(new))
 
         bandwidth = Spinner(title="filter bandwidth", value=self.tb.get_bandwidth())
-        frequency.on_change('value', lambda name, old, new: self.set_bandwidth(new))
+        bandwidth.on_change('value', lambda name, old, new: self.set_bandwidth(new))
 
         manual = Panel(title="Manual", child=column(
             row(rx, gain),
@@ -598,6 +600,7 @@ class SessionHandler(Handler):
         )
 
         async def update_status(last_status={}):
+            set_x_values()
             status = self.client.status
             skymap.latlon = (status['Latitude'], status['Longitude'])
             skymap.azel = (status['AzPos'], status['ElPos'])
