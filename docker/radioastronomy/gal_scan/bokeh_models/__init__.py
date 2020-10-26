@@ -41,6 +41,7 @@ class Knob(HTMLBox):
     title = String(default="")
     value = Float(default=0)
     writable = Bool(default=False)
+    scrollable = Bool(default=False)
     digits = Int(default=3)
     decimals = Int(default=3)
     max = Float()

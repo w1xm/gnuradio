@@ -85,7 +85,11 @@ arg_groups = {
     'RF': {
         'sdr-frequency': dict(type=float, metavar='Hz', default=flowgraph_defaults['sdr_frequency'], help='center frequency'),
         'bandwidth': dict(type=float, metavar='Hz', default=flowgraph_defaults['bandwidth'], help='filter bandwidth',
-                          bokeh=dict(high=5e6)),
+                          bokeh=dict(
+                              max=5e6,
+                              # TODO: Remove when bandwidth calculations work without killing LimeSDR.
+                              writable=False,
+                          )),
     },
     'Iterator': {
         'mode': dict(type=Mode, choices=list(Mode), default=Mode.gal, help='survey type'),

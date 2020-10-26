@@ -101,12 +101,14 @@ export class KnobView extends HTMLBoxView {
       const spin = (direction: number) => {
 	this.model.value = clamp(direction * scale + this.model.value, direction)
       }
-      digit.addEventListener('wheel', event => {
-	// TODO: deal with high-res/accelerated scrolling
-	spin((event.deltaY || event.deltaX) > 0 ? 1 : -1);
-	event.preventDefault();
-	event.stopPropagation();
-      }, {capture: true, passive: false});
+      if (this.model.scrollable) {
+	digit.addEventListener('wheel', event => {
+	  // TODO: deal with high-res/accelerated scrolling
+	  spin((event.deltaY || event.deltaX) > 0 ? 1 : -1);
+	  event.preventDefault();
+	  event.stopPropagation();
+	}, {capture: true, passive: false});
+      }
       const focusNext = () => {
 	if (idx > 0) {
 	  this._places[idx - 1].element.focus();
@@ -250,7 +252,11 @@ export class KnobView extends HTMLBoxView {
 	this._places[i].text.data = digit || '0';
 	this._places[i].element.classList[(digit && active) ? 'remove' : 'add']('knob-dim');
       }
-      const numMarks = Math.floor((valueStrDigits.replace("-", "").length - 1 - 2) / 3);
+      let numDigits = valueStrDigits.replace("-", "").length - 1;
+      if (this.model.decimals > 0) {
+        numDigits-=2;
+      }
+      const numMarks = Math.floor(numDigits / 3);
       for (let i = 0; i < this._marks.length; i++) {
 	this._marks[i].classList[(i < numMarks && active) ? 'remove' : 'add']('knob-dim');
       }
@@ -281,6 +287,7 @@ export namespace Knob {
   export type Props = HTMLBox.Props & {
     title: p.Property<string>
     writable: p.Property<boolean>
+    scrollable: p.Property<boolean>
     digits: p.Property<number>
     decimals: p.Property<number>
     max: p.Property<number>
@@ -310,6 +317,7 @@ export class Knob extends HTMLBox {
     this.define<Knob.Props>({
       title: [ p.String, "" ],
       writable: [ p.Boolean, false ],
+      scrollable: [ p.Boolean, false ],
       digits: [ p.Number, 3 ],
       decimals: [ p.Number, 3 ],
       max: [ p.Number ],

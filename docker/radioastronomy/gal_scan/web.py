@@ -348,10 +348,10 @@ class SessionHandler(Handler):
         rx = ActiveButton(label="RX enabled")
         rx.on_click(lambda: self.set_rx(not rx.active))
 
-        frequency = Spinner(title="center frequency", value=self.tb.get_sdr_frequency())
+        frequency = Knob(title="center frequency", writable=True, value=self.tb.get_sdr_frequency(), digits=10, decimals=0, unit="Hz")
         frequency.on_change('value', lambda name, old, new: self.set_frequency(new))
 
-        bandwidth = Spinner(title="filter bandwidth", value=self.tb.get_bandwidth())
+        bandwidth = Knob(title="filter bandwidth", writable=False, value=self.tb.get_bandwidth(), digits=7, decimals=0, unit="Hz")
         bandwidth.on_change('value', lambda name, old, new: self.set_bandwidth(new))
 
         manual = Panel(title="Manual", child=column(
@@ -386,6 +386,16 @@ class SessionHandler(Handler):
                             bokeh_args['step'] = 1
                         else:
                             bokeh_args['step'] = 0.01
+                    if arg.get('metavar') == 'Hz':
+                        if 'digits' not in bokeh_args:
+                            bokeh_args['digits'] = 10
+                            if bokeh_args.get('max'):
+                                bokeh_args['digits'] = len("%d" % bokeh_args['max'])
+                        type = functools.partial(Knob, decimals=0, unit=arg['metavar'])
+                        del bokeh_args['step']
+                        del bokeh_args['tags']
+                        if 'writable' not in bokeh_args:
+                            bokeh_args['writable'] = True
                 elif 'choices' in arg:
                     type = Select
                     bokeh_args['options'] = [str(x) for x in arg['choices']]
@@ -438,7 +448,8 @@ class SessionHandler(Handler):
                 for (let k in run_models) {
                   if (!run_models[k].disabled) {
                     out[k] = run_models[k].value
-                    if (run_models[k].tags.indexOf("boolean") >= 0) {
+                    const tags = run_models[k].tags
+                    if (tags && tags.indexOf("boolean") >= 0) {
                       out[k] = parseInt(out[k])
                     }
                   }
