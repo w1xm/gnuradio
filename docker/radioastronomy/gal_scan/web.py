@@ -232,6 +232,18 @@ class SessionHandler(Handler):
             callable=functools.partial(self.tb.set_sdr_gain, gain),
         )
 
+    def set_frequency(self, f):
+        self.enqueue_action(
+            name="set frequency to %f" % f,
+            callable=functools.partial(self.tb.set_sdr_frequency, f),
+        )
+
+    def set_bandwidth(self, f):
+        self.enqueue_action(
+            name="set bandwidth to %f" % f,
+            callable=functools.partial(self.tb.set_bandwidth, f),
+        )
+
     def set_rx(self, rx):
         self.enqueue_action(
             name="set rx to %s" % ("enabled" if rx else "disabled (50Ω load)"),
@@ -334,8 +346,16 @@ class SessionHandler(Handler):
         rx = ActiveButton(label="RX enabled")
         rx.on_click(lambda: self.set_rx(not rx.active))
 
+        frequency = Spinner(title="center frequency", value=self.tb.get_sdr_frequency())
+        frequency.on_change('value', lambda name, old, new: self.set_frequency(new))
+
+        bandwidth = Spinner(title="filter bandwidth", value=self.tb.get_bandwidth())
+        frequency.on_change('value', lambda name, old, new: self.set_bandwidth(new))
+
         manual = Panel(title="Manual", child=column(
             row(rx, gain),
+            frequency,
+            bandwidth,
         ))
 
         run_models = {}

@@ -203,6 +203,13 @@ class Survey:
         int_time = self.args.int_time
         darksky_offset = self.args.darksky_offset
 
+        old_freq = tb.get_sdr_frequency()
+        old_bandwidth = tb.get_bandwidth()
+        if self.args.sdr_frequency != old_freq:
+            tb.set_sdr_frequency(self.args.sdr_frequency)
+        if self.args.bandwidth != old_bandwidth:
+            tb.set_bandwidth(self.args.bandwidth)
+
         tb.set_sdr_gain(self.args.gain)
         freq=tb.get_sdr_frequency()*u.Hz
         gain=tb.get_sdr_gain()*u.dB
@@ -325,6 +332,10 @@ class Survey:
                     self.logger.info('Data logged.')
 
         finally:
+            if old_freq != tb.get_sdr_frequency():
+                tb.set_sdr_frequency(old_freq)
+            if old_bandwidth != tb.get_bandwidth():
+                tb.set_bandwidth(old_bandwidth)
             if not all_data:
                 self.logger.warning('No observations found! Not saving data.')
             else:

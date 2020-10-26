@@ -60,7 +60,7 @@ blocks:
   id: variable
   parameters:
     comment: ''
-    value: int(samp_rate/(1.1*if_bandwidth_1))
+    value: int(samp_rate/(1.1*bandwidth))
   states:
     bus_sink: false
     bus_source: false
@@ -359,7 +359,7 @@ blocks:
     coordinate: [247, 356]
     rotation: 0
     state: true
-- name: if_bandwidth_1
+- name: bandwidth
   id: parameter
   parameters:
     alias: ''

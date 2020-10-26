@@ -7,6 +7,7 @@ __metaclass__ = type
 import logging
 import numpy as np
 import argparse
+import inspect
 import os
 import sys
 import time
@@ -65,19 +66,29 @@ class radiotelescope(flowgraph):
         self.point(250,50)
 
 
+flowgraph_defaults = {
+    k: v.default
+    for k,v in inspect.signature(flowgraph.__init__).parameters.items()
+    if v.default != inspect.Parameter.empty
+}
 
 arg_groups = {
     'General': {
         'int-time': dict(type=int, default=30, help='integration time', metavar='seconds',
                          bokeh=dict(low=0)),
-        'gain': dict(type=int, default=45, help='SDR gain', metavar='dB',
+        'gain': dict(type=int, default=flowgraph_defaults['sdr_gain'], help='SDR gain', metavar='dB',
                     bokeh=dict(start=0, end=65)),
         'repeat': dict(type=int, default=1, help='number of times to repeat scan',
                        bokeh=dict(low=1)),
         'ref': dict(default=False, action='store_true', help='measure 50Ω reference load'),
     },
+    'RF': {
+        'sdr-frequency': dict(type=float, metavar='Hz', default=flowgraph_defaults['sdr_frequency'], help='center frequency'),
+        'bandwidth': dict(type=float, metavar='Hz', default=flowgraph_defaults['bandwidth'], help='filter bandwidth',
+                          bokeh=dict(high=5e6)),
+    },
     'Iterator': {
-        'mode': dict(type=Mode, choices=list(Mode), default=Mode.gal),
+        'mode': dict(type=Mode, choices=list(Mode), default=Mode.gal, help='survey type'),
         'start': dict(type=float, default=0, help='start'),
         'stop': dict(type=float, default=360, help='end'),
         'step': dict(type=float, default=2.5, help='step'),
@@ -107,10 +118,6 @@ def parse_args(args, defaults={}):
     parser = LoggingArgumentParser(description='Galactic sky scan')
     parser.add_argument('output_dir', metavar='DIRECTORY',
                         help='output directory to write scan results')
-    parser.add_argument('--sdr-frequency', type=float,
-                        help='change SDR frequency')
-    parser.add_argument('--bandwidth', metavar='HZ', type=float,
-                        help='change filter bandwidth')
     for group_name, group_args in arg_groups.items():
         group = parser.add_argument_group(group_name)
         for arg_name, kwargs in group_args.items():
@@ -136,7 +143,7 @@ def main(top_block_cls=radiotelescope, options=None):
     if args.bandwidth:
         if args.bandwidth > 5e6:
             raise ValueError("bandwidth must be <5e6")
-        tbkwargs['if_bandwidth_1'] = args.bandwidth
+        tbkwargs['bandwidth'] = args.bandwidth
 
     tb = top_block_cls(
         client=client,
